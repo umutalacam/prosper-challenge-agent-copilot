@@ -1,4 +1,4 @@
-import { Button, SettingsIcon } from "@/shared/ui";
+import { BracesIcon, BrandLogo, Button, SettingsIcon } from "@/shared/ui";
 import styles from "./EditorToolbar.module.scss";
 
 export interface EditorToolbarProps {
@@ -9,6 +9,7 @@ export interface EditorToolbarProps {
   persisted: boolean;
   settingsOpen: boolean;
   onToggleSettings: () => void;
+  onShowJson: () => void;
   onAddNode: () => void;
   onAutoLayout: () => void;
   onDelete: () => void;
@@ -22,6 +23,7 @@ export function EditorToolbar({
   persisted,
   settingsOpen,
   onToggleSettings,
+  onShowJson,
   onAddNode,
   onAutoLayout,
   onDelete,
@@ -29,10 +31,11 @@ export function EditorToolbar({
 }: EditorToolbarProps) {
   return (
     <header className={styles.toolbar}>
-      <h1 className={styles.title}>
-        <span className={styles.titleText}>{title || "Untitled agent"}</span>
-        {dirty && <span className={styles.dirtyDot} role="status" aria-label="Unsaved changes" />}
-      </h1>
+      <BrandLogo compact />
+      {/* The agent's name lives in its settings; the heading keeps the page labelled. */}
+      <h1 className={styles.visuallyHidden}>{title || "Untitled agent"}</h1>
+
+      <span className={styles.divider} aria-hidden="true" />
       <Button
         variant="ghost"
         size="sm"
@@ -42,6 +45,16 @@ export function EditorToolbar({
       >
         <SettingsIcon width={16} height={16} />
         Agent settings
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-haspopup="dialog"
+        className={styles.settings}
+        onClick={onShowJson}
+      >
+        <BracesIcon width={16} height={16} />
+        JSON
       </Button>
 
       <span className={styles.divider} aria-hidden="true" />

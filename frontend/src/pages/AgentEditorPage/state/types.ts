@@ -27,6 +27,8 @@ export type EditorAction =
   | { type: "saved"; agent: Agent }
   | { type: "select"; selection: Selection }
   | { type: "updateAgent"; patch: AgentPatch }
+  /** The whole document, e.g. edited as raw JSON. */
+  | { type: "replaceAgent"; agent: Agent }
   | { type: "addNode"; position: Position }
   | { type: "updateNode"; node: string; patch: NodePatch }
   | { type: "renameNode"; from: string; to: string }

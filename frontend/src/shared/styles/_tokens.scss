@@ -66,9 +66,14 @@ $shadow-float:
 
 // ---- floating layout ----
 // The canvas fills the viewport; panels float over it, inset by $float-gap.
+// Below this width, pages drop secondary detail (e.g. table columns).
+$breakpoint-sm: 640px;
+
 $float-gap: 16px;
-$sidebar-width: 264px;
+$toolbar-height: 44px; // the editor toolbar row, centered at the top
+$menu-button-size: $toolbar-height; // the square hamburger button, top-left; matches the toolbar
+$menu-width: 248px;
 $inspector-width: 360px;
 $z-canvas-chrome: 5; // toolbar, React Flow controls
-$z-panel: 10; // sidebar, inspector card
+$z-panel: 10; // app menu, inspector card
 $z-dialog: 100;

@@ -1,14 +1,17 @@
 @use "@/shared/styles/tokens" as *;
 @use "@/shared/styles/mixins" as m;
 
+$inspector-top: $float-gap + $toolbar-height + $space-2;
+
 .card {
   @include m.floating-panel;
   position: absolute;
-  top: $float-gap;
+  // Below the toolbar row, so the centered toolbar never runs under it.
+  top: $inspector-top;
   right: $float-gap;
   z-index: $z-panel;
   width: $inspector-width;
-  max-height: calc(100% - #{2 * $float-gap});
+  max-height: calc(100% - #{$inspector-top + $float-gap});
   overflow-y: auto;
   overscroll-behavior: contain;
   animation: slide-in 160ms ease-out;

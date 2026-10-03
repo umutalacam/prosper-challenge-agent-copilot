@@ -46,6 +46,17 @@ describe("editorReducer", () => {
     expect(state.agent.name).toBe("Y");
   });
 
+  it("replaceAgent swaps the whole document, marks dirty and clears the selection", () => {
+    const replacement: Agent = { ...agent(), name: "From JSON", nodes: [agent().nodes[1]!] };
+    const state = run([
+      { type: "select", selection: { kind: "node", node: "greeting" } },
+      { type: "replaceAgent", agent: replacement },
+    ]);
+    expect(state.agent).toBe(replacement);
+    expect(state.dirty).toBe(true);
+    expect(state.selection).toEqual({ kind: "none" });
+  });
+
   it("selection changes don't mark dirty", () => {
     const state = run([{ type: "select", selection: { kind: "node", node: "collect" } }]);
     expect(state.dirty).toBe(false);

@@ -12,13 +12,18 @@ type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 /** What the API may actually return: schema.py gives these fields defaults, so JSON can omit them. */
 type WireAction = Optional<AgentAction, "properties" | "required">;
 type WireNode = Optional<Omit<AgentNode, "edges">, "task_messages"> & { edges?: WireAction[] };
-type WireAgent = Optional<Omit<StoredAgent, "nodes">, "persona"> & { nodes: WireNode[] };
+/** An agent document as JSON may hold it: schema.py's optional fields may be missing. */
+export type WireAgentDocument = Optional<Omit<Agent, "nodes">, "persona"> & { nodes: WireNode[] };
+type WireAgent = WireAgentDocument & Pick<StoredAgent, "id" | "version" | "updated_at">;
 
 /**
  * Fill the fields schema.py treats as optional so the editor can rely on them
- * (e.g. a terminal node in hand-written JSON usually omits `edges`).
+ * (e.g. a terminal node in hand-written JSON usually omits `edges`). Keeps any
+ * other fields, such as a stored agent's id and version.
  */
-export function normalizeAgent(agent: WireAgent): StoredAgent {
+export function normalizeAgent<T extends WireAgentDocument>(
+  agent: T,
+): Omit<T, "persona" | "nodes"> & Pick<Agent, "persona" | "nodes"> {
   return {
     ...agent,
     persona: agent.persona ?? "",

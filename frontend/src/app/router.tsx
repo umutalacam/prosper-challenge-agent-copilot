@@ -1,5 +1,5 @@
 import { createBrowserRouter } from "react-router";
-import { AgentsIndexPage } from "@/pages/AgentsIndexPage/AgentsIndexPage";
+import { AgentListPage } from "@/pages/AgentListPage/AgentListPage";
 import { AgentsLayout } from "@/pages/AgentsLayout/AgentsLayout";
 import { NotFoundPage } from "@/pages/NotFoundPage/NotFoundPage";
 import { RouteErrorPage } from "@/pages/RouteErrorPage/RouteErrorPage";
@@ -15,12 +15,17 @@ const agentEditorRoute = {
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <AgentsLayout />,
     errorElement: <RouteErrorPage />,
     children: [
-      { index: true, element: <AgentsIndexPage /> },
-      { path: "agents/new", ...agentEditorRoute },
-      { path: "agents/:agentId", ...agentEditorRoute },
+      { index: true, element: <AgentListPage /> },
+      {
+        // The editor's shell: full-viewport canvas with the hamburger menu over it.
+        element: <AgentsLayout />,
+        children: [
+          { path: "agents/new", ...agentEditorRoute },
+          { path: "agents/:agentId", ...agentEditorRoute },
+        ],
+      },
       { path: "*", element: <NotFoundPage /> },
     ],
   },

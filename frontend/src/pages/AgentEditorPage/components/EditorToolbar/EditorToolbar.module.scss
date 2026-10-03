@@ -6,27 +6,12 @@
   @include m.cluster($space-2);
   flex-wrap: wrap;
   max-width: 100%;
-  padding: $space-2 $space-2 $space-2 $space-4;
+  min-height: $toolbar-height;
+  padding: $space-1 $space-2 $space-1 $space-3;
 }
 
-.title {
-  @include m.cluster($space-2);
-  min-width: 0;
-  max-width: 280px;
-  font-size: $font-size-md;
-  font-weight: 600;
-}
-
-.titleText {
-  @include m.truncate;
-}
-
-.dirtyDot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: $color-brand;
+.visuallyHidden {
+  @include m.visually-hidden;
 }
 
 .settings {

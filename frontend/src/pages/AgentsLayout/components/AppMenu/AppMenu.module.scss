@@ -1,0 +1,122 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.root {
+  position: absolute;
+  top: $float-gap;
+  left: $float-gap;
+  z-index: $z-panel;
+}
+
+// A small square island, like Excalidraw's menu button.
+.trigger {
+  @include m.floating-panel;
+  display: grid;
+  place-items: center;
+  width: $menu-button-size;
+  height: $menu-button-size;
+  padding: 0;
+  color: $color-text;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-surface-sunken;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.triggerOpen,
+.triggerOpen:hover {
+  background: $color-brand-soft;
+  color: $color-accent;
+}
+
+.menu {
+  @include m.floating-panel;
+  @include m.stack(2px);
+  position: absolute;
+  top: calc(100% + #{$space-2});
+  left: 0;
+  width: $menu-width;
+  max-height: calc(100vh - #{$float-gap * 2 + $menu-button-size + $space-2});
+  overflow-y: auto;
+  padding: $space-2;
+}
+
+.item {
+  @include m.cluster(10px);
+  width: 100%;
+  min-height: 32px;
+  padding: 0 10px;
+  border: none;
+  border-radius: $radius-sm;
+  background: none;
+  color: $color-text;
+  font: inherit;
+  font-size: $font-size-md;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background: $color-surface-sunken;
+    outline: none;
+  }
+
+  &:disabled {
+    color: $color-text-muted;
+    cursor: not-allowed;
+  }
+}
+
+.icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: $color-text-muted;
+}
+
+.current,
+.current:hover {
+  background: $color-brand-soft;
+  color: $color-accent;
+
+  .icon {
+    color: currentcolor;
+  }
+}
+
+.label {
+  @include m.truncate;
+  flex: 1;
+}
+
+.hint {
+  margin-left: auto;
+  font-size: $font-size-xs;
+  color: $color-text-muted;
+}
+
+.separator {
+  height: 1px;
+  margin: $space-1 0;
+  background: $color-border;
+}
+
+.groupLabel {
+  display: block;
+  padding: $space-1 10px;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  color: $color-text-muted;
+}
+
+.error {
+  padding: $space-1 10px;
+  font-size: $font-size-sm;
+  color: $color-danger;
+}

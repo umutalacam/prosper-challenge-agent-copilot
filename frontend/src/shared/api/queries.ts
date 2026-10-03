@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Agent, StoredAgent } from "@/shared/types/agent";
 import { agentsApi } from "./agents";
+import { botApi } from "./bot";
 import { ApiError } from "./http";
 
 /** Query keys, structured so `agentKeys.all` invalidates every agent query. */
@@ -47,6 +48,31 @@ export function useDeleteAgent() {
     onSuccess: (_data, id) => {
       queryClient.removeQueries({ queryKey: agentKeys.detail(id) });
       return queryClient.invalidateQueries({ queryKey: agentKeys.list() });
+    },
+  });
+}
+
+export const botKeys = {
+  status: ["bot", "status"] as const,
+};
+
+/** Polled, so the running badge and call count follow deploys made elsewhere. */
+export function useBotStatus() {
+  return useQuery({
+    queryKey: botKeys.status,
+    queryFn: botApi.status,
+    refetchInterval: 5_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+/** Switch the voice bot to an agent. */
+export function useDeployAgent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: botApi.deploy,
+    onSuccess: (status) => {
+      queryClient.setQueryData(botKeys.status, status);
     },
   });
 }

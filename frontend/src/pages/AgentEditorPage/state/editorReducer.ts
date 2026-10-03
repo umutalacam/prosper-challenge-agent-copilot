@@ -40,6 +40,10 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case "updateAgent":
       return edit(state, { ...agent, ...action.patch });
 
+    case "replaceAgent":
+      // Whatever was selected may no longer exist.
+      return edit(state, action.agent, NO_SELECTION);
+
     case "addNode": {
       const name = uniqueName(
         "new_node",

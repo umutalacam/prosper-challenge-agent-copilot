@@ -12,8 +12,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    // The agent API (backend/api.py, `make api`).
-    proxy: { "/api": "http://localhost:7860" },
+    // The backend (backend/src/main.py, `make api`). changeOrigin, so URLs the API
+    // builds from its host (the bot's client_url) point at :7860, not at Vite.
+    proxy: { "/api": { target: "http://localhost:7860", changeOrigin: true } },
   },
   test: {
     environment: "jsdom",

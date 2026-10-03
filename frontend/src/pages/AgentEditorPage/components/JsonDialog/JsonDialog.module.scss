@@ -1,0 +1,122 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+// Big enough to read and edit a whole agent: most of the screen, with the code
+// area taking all the height the header and buttons leave.
+.dialog {
+  flex-direction: column;
+  gap: $space-3;
+  width: min(1040px, calc(100vw - #{2 * $float-gap}));
+  height: calc(100vh - #{4 * $float-gap});
+  max-height: none;
+  padding: $space-5;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  color: $color-text;
+  box-shadow: $shadow-md;
+
+  &[open] {
+    display: flex;
+  }
+
+  &::backdrop {
+    background: rgb(29 27 26 / 35%);
+  }
+
+  @media (width < $breakpoint-sm) {
+    height: calc(100vh - #{2 * $float-gap});
+    padding: $space-4;
+  }
+}
+
+.header {
+  @include m.stack($space-1);
+}
+
+.title {
+  font-size: $font-size-lg;
+}
+
+.description {
+  color: $color-text-muted;
+}
+
+// Gutter + text area share one font and line height so the numbers line up.
+$code-font-size: 13px;
+$code-line-height: 1.6;
+$code-padding: $space-3;
+
+.editor {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-sunken;
+
+  &:focus-within {
+    @include m.focus-ring;
+  }
+
+  &[data-invalid] {
+    border-color: $color-danger;
+  }
+}
+
+.gutter,
+.code {
+  margin: 0;
+  padding: $code-padding;
+  font-family: $font-family-mono;
+  font-size: $code-font-size;
+  line-height: $code-line-height;
+  tab-size: 2;
+}
+
+.gutter {
+  flex: none;
+  min-width: 3.5em;
+  overflow: hidden;
+  // Extra room at the end, so it can scroll as far as the text area does when
+  // that one shows a horizontal scrollbar.
+  padding-bottom: $code-padding + $space-4;
+  border-right: 1px solid $color-border;
+  color: $color-text-muted;
+  text-align: right;
+  user-select: none;
+}
+
+.code {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: $color-surface;
+  color: $color-text;
+  white-space: pre;
+  overflow: auto;
+  resize: none;
+  outline: none;
+}
+
+.status,
+.error {
+  font-size: $font-size-sm;
+}
+
+.status {
+  color: $color-text-muted;
+}
+
+.error {
+  color: $color-danger;
+}
+
+.actions {
+  @include m.cluster($space-2);
+}
+
+.spacer {
+  flex: 1;
+}

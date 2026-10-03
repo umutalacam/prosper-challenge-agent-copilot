@@ -1,0 +1,112 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.scroller {
+  overflow-x: auto;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  box-shadow: $shadow-sm;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: $font-size-md;
+
+  th,
+  td {
+    padding: $space-3 $space-4;
+    border-bottom: 1px solid $color-border;
+    text-align: left;
+    vertical-align: middle;
+    white-space: nowrap;
+
+    @media (width < $breakpoint-sm) {
+      padding: $space-2 $space-3;
+      white-space: normal;
+    }
+  }
+
+  thead th {
+    font-size: $font-size-sm;
+    font-weight: 600;
+    color: $color-text-muted;
+    background: $color-surface-sunken;
+  }
+
+  tbody tr:last-child > * {
+    border-bottom: none;
+  }
+
+  tbody th {
+    font-weight: normal;
+  }
+}
+
+// The deployed agent's row carries the brand mark.
+.running > :first-child {
+  box-shadow: inset 3px 0 0 $color-brand;
+}
+
+.name {
+  display: block;
+  font-weight: 600;
+  color: $color-text;
+  text-decoration: none;
+
+  &:hover {
+    color: $color-accent;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.id {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: $color-text-muted;
+}
+
+.muted {
+  color: $color-text-muted;
+}
+
+.actions {
+  @include m.cluster($space-2);
+  justify-content: flex-end;
+
+  @media (width < $breakpoint-sm) {
+    flex-direction: column;
+    align-items: flex-end;
+  }
+}
+
+.talk {
+  padding: 0 $space-2;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  color: $color-accent;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+// Nodes and last-saved give way on phones, so status and Deploy stay in view.
+.secondary {
+  @media (width < $breakpoint-sm) {
+    display: none;
+  }
+}
+
+.visuallyHidden {
+  @include m.visually-hidden;
+}

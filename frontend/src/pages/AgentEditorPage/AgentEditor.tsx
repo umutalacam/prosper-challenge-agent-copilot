@@ -1,14 +1,13 @@
 import { ReactFlowProvider } from "@xyflow/react";
-import { clsx } from "clsx";
 import { useMemo, useReducer, useState } from "react";
 import { useNavigate } from "react-router";
-import { useAgentsLayout } from "@/pages/AgentsLayout/layoutContext";
 import { ApiError, errorMessage, useDeleteAgent, useSaveAgent } from "@/shared/api";
 import type { Agent } from "@/shared/types/agent";
 import { Banner, useConfirm } from "@/shared/ui";
 import { EditorToolbar } from "./components/EditorToolbar/EditorToolbar";
 import { FlowCanvas } from "./components/FlowCanvas/FlowCanvas";
 import { Inspector } from "./components/Inspector/Inspector";
+import { JsonDialog } from "./components/JsonDialog/JsonDialog";
 import { useEscapeKey } from "./hooks/useEscapeKey";
 import { useModKeyShortcut } from "./hooks/useKeyboardShortcut";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
@@ -41,8 +40,8 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   const [version, setVersion] = useState(initialVersion);
   const [fitViewRequest, setFitViewRequest] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [jsonOpen, setJsonOpen] = useState(false);
 
-  const { sidebarOpen } = useAgentsLayout();
   const navigate = useNavigate();
   const confirm = useConfirm();
   const saveAgent = useSaveAgent();
@@ -110,7 +109,7 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
 
   return (
     <EditorContext value={context}>
-      <div className={clsx(styles.editor, sidebarOpen && styles.withSidebar)}>
+      <div className={styles.editor}>
         <ReactFlowProvider>
           <FlowCanvas fitViewRequest={fitViewRequest} />
         </ReactFlowProvider>
@@ -127,6 +126,9 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
                 type: "select",
                 selection: settingsOpen ? NO_SELECTION : { kind: "agent" },
               });
+            }}
+            onShowJson={() => {
+              setJsonOpen(true);
             }}
             onAddNode={() => {
               dispatch({ type: "addNode", position: nextNodePosition(state.agent.nodes) });
@@ -155,6 +157,20 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
         </div>
 
         <Inspector agentId={agentId} onClose={deselect} />
+
+        {jsonOpen && (
+          <JsonDialog
+            agent={state.agent}
+            onApply={(agent) => {
+              // Lay out any nodes the JSON added without a position.
+              dispatch({ type: "replaceAgent", agent: withPositions(agent) });
+              setJsonOpen(false);
+            }}
+            onClose={() => {
+              setJsonOpen(false);
+            }}
+          />
+        )}
       </div>
     </EditorContext>
   );
