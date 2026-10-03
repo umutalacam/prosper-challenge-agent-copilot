@@ -1,8 +1,12 @@
+#
+# Paths and settings shared by the API and the voice bot.
+#
+
 import os
 from pathlib import Path
 
-# backend/ — this file is backend/src/storage/config.py.
-BACKEND_DIR = Path(__file__).resolve().parents[2]
+# backend/ — this file is backend/src/config.py.
+BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 # Database configuration files, kept outside the source tree.
 CONFIG_DIR = BACKEND_DIR / "config"

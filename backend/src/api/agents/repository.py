@@ -17,7 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from .config import SCHEMA_SQL
+from config import SCHEMA_SQL
 
 @dataclass(frozen=True)
 class AgentRecord:

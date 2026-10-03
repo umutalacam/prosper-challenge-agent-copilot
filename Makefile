@@ -23,7 +23,7 @@ run: ## Run the voice agent (AGENT_ID=<id> for a saved agent; then open http://l
 	uv run --directory $(PROJECT) python src/bot.py
 
 api: ## Run the agent CRUD API on :8000 (used by the web UI)
-	uv run --directory $(PROJECT) uvicorn api:app --app-dir src --reload --reload-dir src --port 8000
+	uv run --directory $(PROJECT) uvicorn main:app --app-dir src --reload --reload-dir src --port 8000
 
 api-test: ## Run the backend tests (pytest)
 	uv run --directory $(PROJECT) pytest

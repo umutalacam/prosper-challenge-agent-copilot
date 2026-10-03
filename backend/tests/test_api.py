@@ -1,7 +1,8 @@
 from fastapi.testclient import TestClient
 
-from api import create_app, get_repository
-from storage import AgentRepository
+from api.agents.repository import AgentRepository
+from dependencies import get_agent_repository, get_agent_service
+from main import create_app
 
 from .conftest import make_agent
 
@@ -91,12 +92,21 @@ def test_delete_respects_if_match(client: TestClient):
     assert client.get("/api/agents").json() == []
 
 
-def test_repository_bean_can_be_overridden(tmp_path):
-    """Routes depend on get_repository, so a test (or another store) can replace it."""
+def test_providers_are_singletons_and_overridable(tmp_path, monkeypatch):
+    """One shared repository/service per process; tests swap the repository."""
+    monkeypatch.setenv("AGENTS_DB", str(tmp_path / "singleton.db"))  # never the real file
+    get_agent_repository.cache_clear()
+    try:
+        repository = get_agent_repository()
+        assert repository is get_agent_repository()
+        assert repository.path == tmp_path / "singleton.db"
+        assert get_agent_service(repository) is get_agent_service(repository)
+    finally:
+        get_agent_repository.cache_clear()
+
     other = AgentRepository(tmp_path / "other.db")
     other.create("override", make_agent("From override"))
-    app = create_app(lambda: AgentRepository(tmp_path / "default.db"))
-    app.dependency_overrides[get_repository] = lambda: other
+    app = create_app()
+    app.dependency_overrides[get_agent_repository] = lambda: other
     with TestClient(app) as client:
         assert [a["id"] for a in client.get("/api/agents").json()] == ["override"]
-

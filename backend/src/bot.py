@@ -35,8 +35,8 @@ from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
-from storage import AgentRepository, agents_db_path
-from storage.config import BACKEND_DIR
+from config import BACKEND_DIR
+from dependencies import get_agent_repository
 
 # Load backend/.env, so the bot runs the same from the repo root or backend/.
 load_dotenv(BACKEND_DIR / ".env", override=True)
@@ -53,7 +53,7 @@ AGENT_FLOW = BACKEND_DIR / os.getenv("AGENT_FLOW", "example_flow.json")
 def load_agent() -> AgentBuilder:
     """Read the agent fresh on every call, so edits saved in the UI apply to the next call."""
     if AGENT_ID:
-        record = AgentRepository(agents_db_path()).get(AGENT_ID)
+        record = get_agent_repository().get(AGENT_ID)
         logger.info(f"Loaded agent '{AGENT_ID}' v{record.version} from the database")
         return AgentBuilder.from_dict(record.body)
     return AgentBuilder.from_json(AGENT_FLOW)

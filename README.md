@@ -49,7 +49,7 @@ Create an agent, write its personality (system prompt), add nodes, and drag betw
 | --- | --- |
 | `backend/src/bot.py` | The voice pipeline (WebRTC + ElevenLabs STT/TTS + OpenAI LLM). Loads an agent JSON via `AgentBuilder` and runs it. No graph logic lives here. |
 | `backend/src/agent_builder/` | All agent-building code. `schema.py` = the declarative `AgentConfig` / `Node` / `Edge` contract; `builder.py` = `AgentBuilder`, which loads + validates the JSON and compiles it into a Pipecat Flows graph. |
-| `backend/src/api.py` | FastAPI CRUD over `backend/agents/*.json` for the UI; validates every save with `AgentBuilder`. |
+| `backend/src/main.py` | Agent API entry point (FastAPI). Agents live in SQLite; `api/agents/` holds routes → service → repository. Every save is validated with `AgentBuilder`. |
 | `frontend/` | Agent Composer UI (Vite + React + `@xyflow/react`, SCSS modules). Pages in `src/pages/`, shared API/types/UI kit in `src/shared/`. `make web-check` runs typecheck, lint, format check and tests. |
 | `backend/example_flow.json` | The example agent **as data** — a clinic scheduler. The artifact the Phase 2 Composer generates/edits. |
 

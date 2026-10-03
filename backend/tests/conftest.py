@@ -4,8 +4,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from api import create_app
-from storage import SEED_SQL, AgentRepository
+from api.agents.repository import AgentRepository
+from config import SEED_SQL
+from dependencies import get_agent_repository
+from main import create_app
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "example_flow.json"
 
@@ -18,7 +20,9 @@ def repository(tmp_path: Path) -> AgentRepository:
 @pytest.fixture
 def client(tmp_path: Path):
     """The real app on a throwaway database, seeded like a first run."""
-    app = create_app(lambda: AgentRepository(tmp_path / "api.db", seed=SEED_SQL))
+    test_repository = AgentRepository(tmp_path / "api.db", seed=SEED_SQL)
+    app = create_app()
+    app.dependency_overrides[get_agent_repository] = lambda: test_repository
     with TestClient(app) as client:
         yield client
 

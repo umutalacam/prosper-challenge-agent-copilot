@@ -3,7 +3,13 @@ import threading
 
 import pytest
 
-from storage import SEED_SQL, AgentExists, AgentNotFound, AgentRepository, VersionConflict
+from api.agents.repository import (
+    AgentExists,
+    AgentNotFound,
+    AgentRepository,
+    VersionConflict,
+)
+from config import SEED_SQL
 
 from .conftest import make_agent
 

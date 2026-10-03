@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [tool.uv]
-# This is an application (flat modules under src/: bot.py, api.py, agent_builder/, storage/), not a
+# This is an application (top-level modules under src/: main.py, bot.py, api/, agent_builder/…), not a
 # distributable library — manage the environment, don't build/install a package.
 package = false
 
