@@ -25,9 +25,10 @@ const run = (actions: EditorAction[], state: EditorState = createEditorState(age
   actions.reduce(editorReducer, state);
 
 describe("editorReducer", () => {
-  it("starts clean and becomes dirty on edit", () => {
+  it("starts clean with nothing selected, and becomes dirty on edit", () => {
     const initial = createEditorState(agent());
     expect(initial.dirty).toBe(false);
+    expect(initial.selection).toEqual({ kind: "none" });
     expect(run([{ type: "updateAgent", patch: { name: "X" } }]).dirty).toBe(true);
   });
 
@@ -76,7 +77,7 @@ describe("editorReducer", () => {
       const state = run([{ type: "deleteNode", node: "collect" }]);
       expect(state.agent.nodes.map((n) => n.name)).toEqual(["greeting"]);
       expect(state.agent.nodes[0]!.edges).toEqual([]);
-      expect(state.selection).toEqual({ kind: "agent" });
+      expect(state.selection).toEqual({ kind: "none" });
     });
 
     it("refuses to delete the start node", () => {

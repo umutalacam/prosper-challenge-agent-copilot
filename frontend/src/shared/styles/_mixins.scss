@@ -73,3 +73,11 @@
   overflow-y: auto;
   background: $color-surface;
 }
+
+/** A card that floats over the canvas. */
+@mixin floating-panel {
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  box-shadow: $shadow-float;
+}

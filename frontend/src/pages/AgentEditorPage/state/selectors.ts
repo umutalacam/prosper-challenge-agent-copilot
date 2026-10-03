@@ -7,7 +7,7 @@ export function findNode(state: EditorState, name: string): AgentNode | undefine
 
 export function selectedNode(state: EditorState): AgentNode | undefined {
   const { selection } = state;
-  return selection.kind === "agent" ? undefined : findNode(state, selection.node);
+  return "node" in selection ? findNode(state, selection.node) : undefined;
 }
 
 export function selectedAction(state: EditorState): AgentAction | undefined {

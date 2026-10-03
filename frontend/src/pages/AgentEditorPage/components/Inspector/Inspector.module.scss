@@ -1,7 +1,33 @@
 @use "@/shared/styles/tokens" as *;
 @use "@/shared/styles/mixins" as m;
 
-.inspector {
-  @include m.panel-scroll;
-  border-left: 1px solid $color-border;
+.card {
+  @include m.floating-panel;
+  position: absolute;
+  top: $float-gap;
+  right: $float-gap;
+  z-index: $z-panel;
+  width: $inspector-width;
+  max-height: calc(100% - #{2 * $float-gap});
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  animation: slide-in 160ms ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+.close {
+  position: absolute;
+  top: $space-3;
+  right: $space-3;
+  z-index: 1;
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
 }

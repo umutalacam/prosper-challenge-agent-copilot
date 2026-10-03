@@ -2,16 +2,17 @@
 @use "@/shared/styles/mixins" as m;
 
 .toolbar {
-  @include m.cluster($space-3);
-  padding: 10px $space-4;
-  border-bottom: 1px solid $color-border;
-  background: $color-surface;
+  @include m.floating-panel;
+  @include m.cluster($space-2);
+  flex-wrap: wrap;
+  max-width: 100%;
+  padding: $space-2 $space-2 $space-2 $space-4;
 }
 
 .title {
   @include m.cluster($space-2);
   min-width: 0;
-  margin-right: $space-2;
+  max-width: 280px;
   font-size: $font-size-md;
   font-weight: 600;
 }
@@ -28,10 +29,19 @@
   background: $color-brand;
 }
 
-.group {
-  @include m.cluster($space-2);
+.settings {
+  color: $color-text-muted;
+
+  &[aria-pressed="true"] {
+    background: $color-brand-soft;
+    color: $color-accent;
+  }
 }
 
-.spacer {
-  flex: 1;
+.divider {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 $space-1;
+  background: $color-border;
 }

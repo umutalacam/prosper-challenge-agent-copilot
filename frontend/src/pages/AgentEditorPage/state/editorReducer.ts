@@ -5,8 +5,10 @@ import type { Agent, AgentAction, AgentNode } from "@/shared/types/agent";
 import { uniqueName } from "../lib/naming";
 import type { EditorAction, EditorState, Selection } from "./types";
 
-export function createEditorState(agent: Agent): EditorState {
-  return { agent, dirty: false, selection: { kind: "agent" } };
+export const NO_SELECTION: Selection = { kind: "none" };
+
+export function createEditorState(agent: Agent, selection: Selection = NO_SELECTION): EditorState {
+  return { agent, dirty: false, selection };
 }
 
 const mapNodes = (agent: Agent, fn: (node: AgentNode) => AgentNode): Agent => ({
@@ -68,8 +70,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       }));
       const initial_node = agent.initial_node === from ? to : agent.initial_node;
       const sel = state.selection;
-      const selection: Selection =
-        sel.kind !== "agent" && sel.node === from ? { ...sel, node: to } : sel;
+      const selection: Selection = "node" in sel && sel.node === from ? { ...sel, node: to } : sel;
       return edit(state, { ...renamed, initial_node }, selection);
     }
 
@@ -79,7 +80,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const nodes = agent.nodes
         .filter((n) => n.name !== action.node)
         .map((n) => ({ ...n, edges: n.edges.filter((e) => e.target !== action.node) }));
-      return edit(state, { ...agent, nodes }, { kind: "agent" });
+      return edit(state, { ...agent, nodes }, NO_SELECTION);
     }
 
     case "moveNodes":

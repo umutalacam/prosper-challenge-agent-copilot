@@ -1,7 +1,11 @@
 import type { Agent, AgentAction, AgentNode, Position } from "@/shared/types/agent";
 
-/** What the inspector is editing. Nodes are addressed by name, actions by index. */
+/**
+ * What the inspector card is editing: nothing (card closed), the agent's settings,
+ * a node (by name) or an action (by node name + index).
+ */
 export type Selection =
+  | { kind: "none" }
   | { kind: "agent" }
   | { kind: "node"; node: string }
   | { kind: "action"; node: string; index: number };

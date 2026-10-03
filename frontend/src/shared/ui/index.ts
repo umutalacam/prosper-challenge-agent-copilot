@@ -13,6 +13,7 @@ export { useConfirm, type ConfirmOptions } from "./ConfirmDialog/confirmContext"
 export { EmptyState } from "./EmptyState/EmptyState";
 export { Field, type FieldControlProps, type FieldProps } from "./Field/Field";
 export { IconButton } from "./IconButton/IconButton";
+export { CloseIcon, PanelLeftIcon, SettingsIcon } from "./icons/icons";
 export { Input, type InputProps } from "./Input/Input";
 export { Section } from "./Section/Section";
 export { Select, type SelectOption, type SelectProps } from "./Select/Select";

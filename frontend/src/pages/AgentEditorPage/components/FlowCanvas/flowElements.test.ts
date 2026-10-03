@@ -30,7 +30,7 @@ describe("toFlowNodes", () => {
   });
 
   it("attaches measured dimensions when known", () => {
-    const nodes = toFlowNodes(agent, { kind: "agent" }, { a: { width: 240, height: 100 } });
+    const nodes = toFlowNodes(agent, { kind: "none" }, { a: { width: 240, height: 100 } });
     expect(nodes[0]!.measured).toEqual({ width: 240, height: 100 });
     expect(nodes[1]!.measured).toBeUndefined();
   });

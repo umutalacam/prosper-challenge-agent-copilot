@@ -7,6 +7,8 @@
 }
 
 .title {
+  // Clear the inspector card's close button.
+  padding-right: $space-8;
   font-size: $font-size-lg;
 }
 

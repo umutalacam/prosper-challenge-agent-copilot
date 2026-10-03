@@ -59,3 +59,16 @@ $font-size-lg: 16px;
 // ---- elevation ----
 $shadow-sm: 0 1px 3px rgb(0 0 0 / 6%);
 $shadow-md: 0 8px 24px rgb(0 0 0 / 12%);
+// Floating panels: a soft lift that separates them from the canvas grid.
+$shadow-float:
+  0 2px 6px rgb(29 27 26 / 6%),
+  0 12px 32px rgb(29 27 26 / 10%);
+
+// ---- floating layout ----
+// The canvas fills the viewport; panels float over it, inset by $float-gap.
+$float-gap: 16px;
+$sidebar-width: 264px;
+$inspector-width: 360px;
+$z-canvas-chrome: 5; // toolbar, React Flow controls
+$z-panel: 10; // sidebar, inspector card
+$z-dialog: 100;

@@ -1,13 +1,41 @@
+@use "@/shared/styles/tokens" as *;
+
+// Distance from the left edge to clear the floating sidebar (open or collapsed header).
+$clear-sidebar: $float-gap + $sidebar-width + $float-gap;
+
 .editor {
-  display: flex;
-  flex-direction: column;
+  position: relative;
   height: 100%;
   min-width: 0;
 }
 
-.body {
-  display: grid;
-  flex: 1;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  min-height: 0;
+// Toolbar + error banner, floating at the top between the sidebar and the inspector.
+.top {
+  position: absolute;
+  top: $float-gap;
+  right: $float-gap + $inspector-width + $float-gap;
+  left: $clear-sidebar;
+  z-index: $z-canvas-chrome;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $space-2;
+  // Let canvas clicks through the empty part of the strip.
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.banner {
+  max-width: 100%;
+  border: 1px solid $color-danger-border;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-float;
+}
+
+// With the sidebar open (full height), React Flow's bottom-left panels move clear of it.
+.withSidebar :global(.react-flow__panel.left) {
+  margin-left: $clear-sidebar;
 }

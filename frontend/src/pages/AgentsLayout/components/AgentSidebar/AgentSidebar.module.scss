@@ -2,13 +2,43 @@
 @use "@/shared/styles/mixins" as m;
 
 .sidebar {
-  @include m.panel-scroll;
-  border-right: 1px solid $color-border;
+  @include m.floating-panel;
+  position: absolute;
+  top: $float-gap;
+  bottom: $float-gap;
+  left: $float-gap;
+  z-index: $z-panel;
+  display: flex;
+  flex-direction: column;
+  width: $sidebar-width;
+}
+
+// Collapsed: shrink to the header card; the canvas shows through below.
+.collapsed {
+  bottom: auto;
 }
 
 .brand {
-  padding: $space-5 $space-4 $space-4;
-  border-bottom: 1px solid $color-border;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-2;
+  padding: $space-4;
+
+  .sidebar:not(.collapsed) & {
+    border-bottom: 1px solid $color-border;
+  }
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: $space-2;
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 .header {

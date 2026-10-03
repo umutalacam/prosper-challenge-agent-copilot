@@ -91,7 +91,7 @@ export function FlowCanvas({ fitViewRequest }: FlowCanvasProps) {
           dispatch({ type: "select", selection: { kind: "action", node, index } });
         }}
         onPaneClick={() => {
-          dispatch({ type: "select", selection: { kind: "agent" } });
+          dispatch({ type: "select", selection: { kind: "none" } });
         }}
         // Deletion goes through the inspector so cascades and guards always apply.
         deleteKeyCode={null}
@@ -99,8 +99,13 @@ export function FlowCanvas({ fitViewRequest }: FlowCanvasProps) {
         fitViewOptions={FIT_VIEW_OPTIONS}
       >
         <Background gap={20} />
-        <Controls showInteractive={false} />
-        <MiniMap pannable zoomable />
+        <Controls
+          position="bottom-left"
+          orientation="horizontal"
+          showInteractive={false}
+          className={styles.controls}
+        />
+        <MiniMap position="bottom-left" pannable zoomable className={styles.minimap} />
       </ReactFlow>
     </div>
   );
