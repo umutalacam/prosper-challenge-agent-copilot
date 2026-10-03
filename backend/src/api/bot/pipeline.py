@@ -29,6 +29,8 @@ from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
 
+from .call_log import CallLog
+
 transport_params = {
     "webrtc": lambda: TransportParams(audio_in_enabled=True, audio_out_enabled=True),
 }
@@ -78,19 +80,37 @@ async def run_bot(
         transport=transport,
     )
 
+    # The call's path through the graph, logged at every step (see call_log.py).
+    call_log = CallLog(runner_args.session_id, config)
+    builder.on_transition = call_log.transition
+
+    # What was said, turn by turn, so the log shows the model improvising in a node.
+    @context_aggregator.user().event_handler("on_user_turn_stopped")
+    async def on_user_turn_stopped(aggregator, strategy, message):
+        if message.content:
+            call_log.caller_said(message.content)
+
+    @context_aggregator.assistant().event_handler("on_assistant_turn_stopped")
+    async def on_assistant_turn_stopped(aggregator, message):
+        if message.content:
+            call_log.bot_said(message.content, interrupted=message.interrupted)
+
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
-        logger.info("Client connected — starting flow at initial node")
+        call_log.started()
         await flow_manager.initialize(builder.build_initial_node())
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
-        logger.info("Client disconnected")
+        logger.debug("Client disconnected")
         await worker.cancel()
 
     runner = WorkerRunner(handle_sigint=runner_args.handle_sigint)
     await runner.add_workers(worker)
-    await runner.run()
+    try:
+        await runner.run()
+    finally:
+        call_log.ended(flow_manager.state)
 
 
 async def run_call(runner_args: RunnerArguments, builder: AgentBuilder) -> None:

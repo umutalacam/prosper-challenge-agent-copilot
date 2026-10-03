@@ -10,13 +10,17 @@
 #
 
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
-from loguru import logger
 from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
 from .schema import AgentConfig, Edge, Node
+
+# Called on every transition: (source node, action taken, its arguments, the call's
+# state after merging them). The voice pipeline logs the call's path with it.
+TransitionHook = Callable[[str, Edge, dict[str, Any], dict[str, Any]], None]
 
 
 class AgentBuilder:
@@ -26,6 +30,7 @@ class AgentBuilder:
         self.config = config
         self._nodes_by_name = {n.name: n for n in config.nodes}
         self._validate()
+        self.on_transition: TransitionHook | None = None
 
     # ---- loading -----------------------------------------------------------
     @classmethod
@@ -88,7 +93,7 @@ class AgentBuilder:
             "name": node.name,
             "role_message": node.role_message or self.config.persona,
             "task_messages": node.task_messages,
-            "functions": [self._make_edge_function(edge) for edge in node.edges],
+            "functions": [self._make_edge_function(node, edge) for edge in node.edges],
         }
         if node.pre_actions:
             node_config["pre_actions"] = node.pre_actions
@@ -99,11 +104,12 @@ class AgentBuilder:
             node_config["post_actions"] = [{"type": "end_conversation"}]
         return node_config
 
-    def _make_edge_function(self, edge: Edge) -> FlowsFunctionSchema:
+    def _make_edge_function(self, source: Node, edge: Edge) -> FlowsFunctionSchema:
         async def handler(args: dict, flow_manager: FlowManager):
             # Persist what the caller gave us so later nodes can use it.
             flow_manager.state.update(args)
-            logger.info(f"[{edge.function}] -> {edge.target} | collected: {args}")
+            if self.on_transition:
+                self.on_transition(source.name, edge, args, flow_manager.state)
             next_node = self._make_node(self._nodes_by_name[edge.target])
             return {"status": "success", **args}, next_node
 
