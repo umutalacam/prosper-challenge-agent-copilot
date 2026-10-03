@@ -20,3 +20,11 @@ export function selectedAction(state: EditorState): AgentAction | undefined {
 export function nodeNames(state: EditorState): string[] {
   return state.agent.nodes.map((n) => n.name);
 }
+
+/**
+ * Nodes an action from `source` may lead to: any other node except the start
+ * node, which nothing enters. (AgentBuilder enforces the same rules on save.)
+ */
+export function actionTargets(state: EditorState, source: string): string[] {
+  return nodeNames(state).filter((name) => name !== state.agent.initial_node && name !== source);
+}

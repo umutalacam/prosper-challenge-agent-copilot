@@ -116,12 +116,49 @@ describe("editorReducer", () => {
   describe("actions", () => {
     it("addAction picks a unique function name and selects the new action", () => {
       const state = run([
-        { type: "addAction", source: "collect", target: "greeting" },
-        { type: "addAction", source: "collect", target: "greeting" },
+        { type: "addAction", source: "greeting", target: "collect" },
+        { type: "addAction", source: "greeting", target: "collect" },
       ]);
-      const fns = state.agent.nodes[1]!.edges.map((e) => e.function);
-      expect(fns).toEqual(["go_to_greeting", "go_to_greeting_2"]);
-      expect(state.selection).toEqual({ kind: "action", node: "collect", index: 1 });
+      const fns = state.agent.nodes[0]!.edges.map((e) => e.function);
+      expect(fns).toEqual(["next", "go_to_collect", "go_to_collect_2"]);
+      expect(state.selection).toEqual({ kind: "action", node: "greeting", index: 2 });
+    });
+
+    it("addAction refuses a self-loop and anything out of an end node", () => {
+      const before = createEditorState(agent());
+      expect(
+        editorReducer(before, { type: "addAction", source: "collect", target: "collect" }),
+      ).toBe(before);
+      const ended = run([{ type: "updateNode", node: "greeting", patch: { end: true } }]);
+      expect(
+        editorReducer(ended, { type: "addAction", source: "greeting", target: "collect" }),
+      ).toBe(ended);
+      expect(
+        editorReducer(ended, {
+          type: "addNodeAfter",
+          source: "greeting",
+          position: { x: 0, y: 0 },
+        }),
+      ).toBe(ended);
+    });
+
+    it("addAction refuses to lead into the start node", () => {
+      const before = createEditorState(agent());
+      expect(
+        editorReducer(before, { type: "addAction", source: "collect", target: "greeting" }),
+      ).toBe(before);
+    });
+
+    it("addNodeAfter adds a node, connects the source to it and selects it", () => {
+      const state = run([{ type: "addNodeAfter", source: "greeting", position: { x: 5, y: 9 } }]);
+      const added = state.agent.nodes[2]!;
+      expect(added).toMatchObject({ name: "new_node", position: { x: 5, y: 9 }, edges: [] });
+      expect(state.agent.nodes[0]!.edges.map((e) => [e.function, e.target])).toEqual([
+        ["next", "collect"],
+        ["go_to_new_node", "new_node"],
+      ]);
+      expect(state.selection).toEqual({ kind: "node", node: "new_node" });
+      expect(state.dirty).toBe(true);
     });
 
     it("addAction ignores unknown nodes", () => {

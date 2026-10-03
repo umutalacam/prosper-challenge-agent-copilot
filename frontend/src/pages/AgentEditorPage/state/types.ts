@@ -35,5 +35,7 @@ export type EditorAction =
   | { type: "deleteNode"; node: string }
   | { type: "moveNodes"; positions: Record<string, Position> }
   | { type: "addAction"; source: string; target: string }
+  /** The canvas "+" under a node: a new node at `position`, reached by a new action. */
+  | { type: "addNodeAfter"; source: string; position: Position }
   | { type: "updateAction"; node: string; index: number; patch: ActionPatch }
   | { type: "deleteAction"; node: string; index: number };

@@ -1,7 +1,10 @@
 @use "@/shared/styles/tokens" as *;
 @use "@/shared/styles/mixins" as m;
 
+$handle-size: 10px;
+
 .card {
+  position: relative;
   width: 240px;
   padding: 10px $space-3;
   border: 1px solid $color-border;
@@ -45,7 +48,72 @@
 }
 
 .handle {
-  width: 10px;
-  height: 10px;
+  width: $handle-size;
+  height: $handle-size;
   border-width: 2px;
+}
+
+.hiddenHandle {
+  visibility: hidden;
+}
+
+// The "+" under the source handle, shown while the card is hovered or selected
+// (or the button has keyboard focus), like draw.io's hover arrows.
+$add-size: 22px;
+$add-offset: 14px; // gap between the card's bottom edge and the button
+// The source handle hangs half its size below the card; the zone starts past it
+// so it never covers the handle (that would block dragging out an action).
+$handle-overhang: $handle-size * 0.5 + 1px;
+
+.addZone {
+  position: absolute;
+  top: calc(100% + #{$handle-overhang});
+  left: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  width: $add-size + 2 * $space-2;
+  height: $add-offset - $handle-overhang + $add-size;
+  transform: translateX(-50%);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+
+  .card:hover &,
+  .selected &,
+  &:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.addButton {
+  display: grid;
+  place-items: center;
+  width: $add-size;
+  height: $add-size;
+  padding: 0;
+  border: 1px solid $color-brand;
+  border-radius: 50%;
+  background: $color-surface;
+  color: $color-accent;
+  font-size: $font-size-lg;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: $shadow-sm;
+
+  &:hover {
+    background: $color-accent;
+    border-color: $color-accent;
+    color: $color-text-on-accent;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
 }

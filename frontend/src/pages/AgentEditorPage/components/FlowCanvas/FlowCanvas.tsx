@@ -6,6 +6,7 @@ import {
   ReactFlow,
   useReactFlow,
   type Connection,
+  type Edge,
   type NodeChange,
 } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -74,6 +75,15 @@ export function FlowCanvas({ fitViewRequest }: FlowCanvasProps) {
     [dispatch],
   );
 
+  // The graph rules (see actionTargets): React Flow refuses such drops while dragging.
+  const isValidConnection = useCallback(
+    ({ source, target }: Connection | Edge) =>
+      source !== target &&
+      target !== state.agent.initial_node &&
+      !state.agent.nodes.find((n) => n.name === source)?.end,
+    [state.agent],
+  );
+
   return (
     <div className={styles.canvas}>
       <ReactFlow<NodeCardNode, ActionEdge>
@@ -82,6 +92,7 @@ export function FlowCanvas({ fitViewRequest }: FlowCanvasProps) {
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onConnect={onConnect}
+        isValidConnection={isValidConnection}
         onNodeClick={(_, node) => {
           dispatch({ type: "select", selection: { kind: "node", node: node.id } });
         }}
@@ -93,7 +104,8 @@ export function FlowCanvas({ fitViewRequest }: FlowCanvasProps) {
         onPaneClick={() => {
           dispatch({ type: "select", selection: { kind: "none" } });
         }}
-        // Deletion goes through the inspector so cascades and guards always apply.
+        // Off: Delete/Backspace are handled by AgentEditor through the reducer, so
+        // cascades and guards always apply.
         deleteKeyCode={null}
         fitView
         fitViewOptions={FIT_VIEW_OPTIONS}

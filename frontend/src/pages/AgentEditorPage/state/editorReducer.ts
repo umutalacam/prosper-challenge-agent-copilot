@@ -19,6 +19,27 @@ const mapNodes = (agent: Agent, fn: (node: AgentNode) => AgentNode): Agent => ({
 const mapNode = (agent: Agent, name: string, fn: (node: AgentNode) => AgentNode): Agent =>
   mapNodes(agent, (node) => (node.name === name ? fn(node) : node));
 
+const blankNode = (agent: Agent, position: AgentNode["position"]): AgentNode => ({
+  name: uniqueName(
+    "new_node",
+    agent.nodes.map((n) => n.name),
+  ),
+  task_messages: [{ role: "developer", content: "" }],
+  edges: [],
+  position,
+});
+
+const actionTo = (source: AgentNode, target: string): AgentAction => ({
+  function: uniqueName(
+    `go_to_${target}`,
+    source.edges.map((e) => e.function),
+  ),
+  description: "",
+  target,
+  properties: {},
+  required: [],
+});
+
 /** Apply an edit: marks dirty and optionally moves the selection. */
 const edit = (state: EditorState, agent: Agent, selection = state.selection): EditorState => ({
   agent,
@@ -45,17 +66,22 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return edit(state, action.agent, NO_SELECTION);
 
     case "addNode": {
-      const name = uniqueName(
-        "new_node",
-        agent.nodes.map((n) => n.name),
+      const node = blankNode(agent, action.position);
+      return edit(
+        state,
+        { ...agent, nodes: [...agent.nodes, node] },
+        { kind: "node", node: node.name },
       );
-      const node: AgentNode = {
-        name,
-        task_messages: [{ role: "developer", content: "" }],
-        edges: [],
-        position: action.position,
-      };
-      return edit(state, { ...agent, nodes: [...agent.nodes, node] }, { kind: "node", node: name });
+    }
+
+    case "addNodeAfter": {
+      const source = agent.nodes.find((n) => n.name === action.source);
+      if (!source || source.end) return state;
+      const node = blankNode(agent, action.position);
+      const nodes = agent.nodes.map((n) =>
+        n === source ? { ...n, edges: [...n.edges, actionTo(n, node.name)] } : n,
+      );
+      return edit(state, { ...agent, nodes: [...nodes, node] }, { kind: "node", node: node.name });
     }
 
     case "updateNode":
@@ -99,19 +125,16 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
     case "addAction": {
       const source = agent.nodes.find((n) => n.name === action.source);
       if (!source || !agent.nodes.some((n) => n.name === action.target)) return state;
-      const newAction: AgentAction = {
-        function: uniqueName(
-          `go_to_${action.target}`,
-          source.edges.map((e) => e.function),
-        ),
-        description: "",
-        target: action.target,
-        properties: {},
-        required: [],
-      };
+      // The graph rules AgentBuilder enforces too: nothing leads into the start
+      // node, an action moves to another node, and an end node leads nowhere.
+      if (action.target === agent.initial_node) return state;
+      if (action.target === source.name || source.end) return state;
       return edit(
         state,
-        mapNode(agent, source.name, (n) => ({ ...n, edges: [...n.edges, newAction] })),
+        mapNode(agent, source.name, (n) => ({
+          ...n,
+          edges: [...n.edges, actionTo(n, action.target)],
+        })),
         { kind: "action", node: source.name, index: source.edges.length },
       );
     }

@@ -49,6 +49,12 @@ class AgentBuilder:
                 f"initial_node '{self.config.initial_node}' is not a defined node."
             )
         for node in self.config.nodes:
+            # An end node finishes the call, so it can't lead anywhere.
+            if node.end and node.edges:
+                raise ValueError(
+                    f"End node '{node.name}' can't have actions "
+                    f"({', '.join(edge.function for edge in node.edges)}); it ends the call."
+                )
             functions = [edge.function for edge in node.edges]
             if len(functions) != len(set(functions)):
                 raise ValueError(
@@ -59,6 +65,17 @@ class AgentBuilder:
                     raise ValueError(
                         f"Edge '{edge.function}' in node '{node.name}' targets "
                         f"unknown node '{edge.target}'."
+                    )
+                if edge.target == node.name:
+                    raise ValueError(
+                        f"Edge '{edge.function}' in node '{node.name}' leads back to "
+                        f"'{node.name}'; an action must move to another node."
+                    )
+                # The start node is where every call begins; nothing leads back into it.
+                if edge.target == self.config.initial_node:
+                    raise ValueError(
+                        f"Edge '{edge.function}' in node '{node.name}' targets the "
+                        f"start node '{edge.target}'; nothing can lead into the start node."
                     )
 
     # ---- compilation -------------------------------------------------------

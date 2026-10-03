@@ -5,15 +5,24 @@ import styles from "./ActionList.module.scss";
 
 export interface ActionListProps {
   actions: AgentAction[];
-  /** Node names an action can target (including the node itself). */
+  /** Node names a new action can target. */
   targets: string[];
   defaultTarget: string;
+  /** Set to explain why no action can be added (the add control is hidden). */
+  addDisabledReason?: string;
   onSelect: (index: number) => void;
   onAdd: (target: string) => void;
 }
 
 /** A node's outgoing actions, plus a control to add one. */
-export function ActionList({ actions, targets, defaultTarget, onSelect, onAdd }: ActionListProps) {
+export function ActionList({
+  actions,
+  targets,
+  defaultTarget,
+  addDisabledReason,
+  onSelect,
+  onAdd,
+}: ActionListProps) {
   const [target, setTarget] = useState(defaultTarget);
   // Fall back if the chosen target was renamed or deleted.
   const selectedTarget = targets.includes(target) ? target : defaultTarget;
@@ -41,21 +50,25 @@ export function ActionList({ actions, targets, defaultTarget, onSelect, onAdd }:
           ))}
         </ul>
       )}
-      <div className={styles.add}>
-        <Select
-          aria-label="Target node for new action"
-          value={selectedTarget}
-          options={targets.map((value) => ({ value }))}
-          onChange={setTarget}
-        />
-        <Button
-          onClick={() => {
-            onAdd(selectedTarget);
-          }}
-        >
-          + Add action
-        </Button>
-      </div>
+      {addDisabledReason ? (
+        <p className={styles.note}>{addDisabledReason}</p>
+      ) : (
+        <div className={styles.add}>
+          <Select
+            aria-label="Target node for new action"
+            value={selectedTarget}
+            options={targets.map((value) => ({ value }))}
+            onChange={setTarget}
+          />
+          <Button
+            onClick={() => {
+              onAdd(selectedTarget);
+            }}
+          >
+            + Add action
+          </Button>
+        </div>
+      )}
     </Section>
   );
 }

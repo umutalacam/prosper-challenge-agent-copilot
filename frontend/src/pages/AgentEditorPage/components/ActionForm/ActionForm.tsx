@@ -2,7 +2,7 @@ import type { AgentAction } from "@/shared/types/agent";
 import { Button, Field, Input, Select, TextArea } from "@/shared/ui";
 import { toIdentifierChars } from "../../lib/naming";
 import { useEditor } from "../../state/editorContext";
-import { nodeNames } from "../../state/selectors";
+import { actionTargets } from "../../state/selectors";
 import type { ActionPatch } from "../../state/types";
 import { FieldsEditor } from "../FieldsEditor/FieldsEditor";
 import { InspectorForm } from "../InspectorForm/InspectorForm";
@@ -15,6 +15,7 @@ export interface ActionFormProps {
 
 export function ActionForm({ node, index, action }: ActionFormProps) {
   const { state, dispatch } = useEditor();
+  const targets = actionTargets(state, node);
   const siblings = state.agent.nodes
     .find((n) => n.name === node)
     ?.edges.filter((_, i) => i !== index)
@@ -89,7 +90,11 @@ export function ActionForm({ node, index, action }: ActionFormProps) {
           <Select
             {...p}
             value={action.target}
-            options={nodeNames(state).map((value) => ({ value }))}
+            // Invalid targets (the start node, this node) aren't offered; still list
+            // the current one if it's invalid (e.g. set in the JSON) so the save error makes sense.
+            options={[...(targets.includes(action.target) ? [] : [action.target]), ...targets].map(
+              (value) => ({ value }),
+            )}
             onChange={(target) => {
               update({ target });
             }}

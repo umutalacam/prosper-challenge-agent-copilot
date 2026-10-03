@@ -27,6 +27,27 @@ def test_create_rejects_what_the_bot_could_not_load(service: AgentService):
     assert service.list() == []
 
 
+def test_nothing_may_lead_into_the_start_node(service: AgentService):
+    looping = make_agent(nodes=2)
+    looping["nodes"][1]["edges"] = [{"function": "restart", "description": "", "target": "n0"}]
+    with pytest.raises(InvalidAgent, match="targets the start node 'n0'"):
+        service.create(looping)
+
+
+def test_an_action_must_move_to_another_node(service: AgentService):
+    looping = make_agent(nodes=2)
+    looping["nodes"][1]["edges"] = [{"function": "again", "description": "", "target": "n1"}]
+    with pytest.raises(InvalidAgent, match="leads back to 'n1'"):
+        service.create(looping)
+
+
+def test_an_end_node_has_no_actions(service: AgentService):
+    ending = make_agent(nodes=2)
+    ending["nodes"][0]["end"] = True  # n0 -> n1 is its action
+    with pytest.raises(InvalidAgent, match="End node 'n0' can't have actions"):
+        service.create(ending)
+
+
 def test_update_validates_and_checks_the_version(service: AgentService):
     created = service.create(make_agent("A"))
     assert service.update(created.id, make_agent("B"), expected_version=1).version == 2

@@ -8,7 +8,7 @@ import { EditorToolbar } from "./components/EditorToolbar/EditorToolbar";
 import { FlowCanvas } from "./components/FlowCanvas/FlowCanvas";
 import { Inspector } from "./components/Inspector/Inspector";
 import { JsonDialog } from "./components/JsonDialog/JsonDialog";
-import { useEscapeKey } from "./hooks/useEscapeKey";
+import { useKeyPress } from "./hooks/useKeyPress";
 import { useModKeyShortcut } from "./hooks/useKeyboardShortcut";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { autoLayout, nextNodePosition, withPositions } from "./lib/autoLayout";
@@ -102,7 +102,20 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   useModKeyShortcut("s", () => {
     void save();
   });
-  useEscapeKey(state.selection.kind !== "none", deselect);
+  useKeyPress(["Escape"], state.selection.kind !== "none", deselect);
+
+  // Delete / Backspace remove the selected node or action, through the reducer so
+  // cascades and guards apply (inbound actions go too; the start node stays).
+  const { selection } = state;
+  const deletable =
+    selection.kind === "action" ||
+    (selection.kind === "node" && selection.node !== state.agent.initial_node);
+  useKeyPress(["Delete", "Backspace"], deletable, () => {
+    if (selection.kind === "node") dispatch({ type: "deleteNode", node: selection.node });
+    if (selection.kind === "action") {
+      dispatch({ type: "deleteAction", node: selection.node, index: selection.index });
+    }
+  });
 
   const context = useMemo(() => ({ state, dispatch }), [state]);
   const settingsOpen = state.selection.kind === "agent";

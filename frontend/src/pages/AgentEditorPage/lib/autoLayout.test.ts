@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { AgentNode } from "@/shared/types/agent";
-import { autoLayout, nextNodePosition, withPositions } from "./autoLayout";
+import {
+  autoLayout,
+  NODE_SIZE,
+  nextNodePosition,
+  positionBelow,
+  withPositions,
+} from "./autoLayout";
 
 const node = (
   name: string,
@@ -49,5 +55,20 @@ describe("nextNodePosition", () => {
   it("goes below the lowest node", () => {
     const pos = nextNodePosition([node("a", [], { x: 0, y: 300 })]);
     expect(pos.y).toBeGreaterThan(300);
+  });
+});
+
+describe("positionBelow", () => {
+  it("goes straight below the source", () => {
+    const pos = positionBelow([node("a", [], { x: 100, y: 0 })], "a");
+    expect(pos.x).toBe(100);
+    expect(pos.y).toBeGreaterThan(NODE_SIZE.height);
+  });
+
+  it("steps right past a node already there, e.g. an earlier sibling", () => {
+    const first = positionBelow([node("a", [], { x: 0, y: 0 })], "a");
+    const pos = positionBelow([node("a", [], { x: 0, y: 0 }), node("b", [], first)], "a");
+    expect(pos.y).toBe(first.y);
+    expect(pos.x).toBeGreaterThanOrEqual(first.x + NODE_SIZE.width);
   });
 });
