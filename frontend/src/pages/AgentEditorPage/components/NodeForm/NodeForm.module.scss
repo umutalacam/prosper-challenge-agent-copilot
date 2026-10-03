@@ -1,0 +1,7 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.flags {
+  @include m.cluster($space-4);
+  flex-wrap: wrap;
+}

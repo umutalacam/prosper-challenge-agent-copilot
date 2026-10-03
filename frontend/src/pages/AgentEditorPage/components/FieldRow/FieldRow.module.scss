@@ -1,0 +1,27 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.row {
+  @include m.stack(6px);
+  padding-bottom: 10px;
+  border-bottom: 1px dashed $color-border;
+}
+
+.header {
+  @include m.cluster($space-2);
+}
+
+.name {
+  flex: 1;
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+}
+
+.type {
+  flex: 0 0 96px;
+}
+
+.error {
+  font-size: $font-size-sm;
+  color: $color-danger;
+}

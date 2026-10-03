@@ -1,0 +1,22 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.callout {
+  @include m.stack(6px);
+  padding: 10px;
+  border-radius: $radius-md;
+  background: $color-surface-sunken;
+  color: $color-text-muted;
+}
+
+.command {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  color: $color-text;
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  font-size: $font-size-sm;
+  color: $color-text-muted;
+}

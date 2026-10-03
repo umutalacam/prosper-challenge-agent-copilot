@@ -1,0 +1,16 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.form {
+  @include m.stack(14px);
+  padding: $space-4;
+}
+
+.title {
+  font-size: $font-size-lg;
+}
+
+.footer {
+  @include m.stack($space-2);
+  padding-top: $space-2;
+}

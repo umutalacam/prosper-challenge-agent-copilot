@@ -1,0 +1,7 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.inspector {
+  @include m.panel-scroll;
+  border-left: 1px solid $color-border;
+}

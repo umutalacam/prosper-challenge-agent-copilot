@@ -1,0 +1,7 @@
+@use "@/shared/styles/tokens" as *;
+
+.task {
+  display: flex;
+  align-items: flex-start;
+  gap: $space-1;
+}

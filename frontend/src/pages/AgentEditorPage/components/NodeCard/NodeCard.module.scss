@@ -1,0 +1,51 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.card {
+  width: 240px;
+  padding: 10px $space-3;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  box-shadow: $shadow-sm;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.selected {
+  border-color: $color-brand;
+  box-shadow: 0 0 0 3px $color-brand-soft;
+}
+
+.header {
+  @include m.cluster(6px);
+}
+
+.name {
+  @include m.truncate;
+  flex: 1;
+  font-weight: 600;
+}
+
+.task {
+  @include m.line-clamp(2);
+  margin: 6px 0;
+  font-size: $font-size-sm;
+  color: $color-text-muted;
+}
+
+.taskEmpty {
+  font-style: italic;
+}
+
+.footer {
+  font-size: $font-size-xs;
+  color: $color-text-muted;
+}
+
+.handle {
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+}
