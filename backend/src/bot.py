@@ -8,11 +8,11 @@
 #
 #   example_flow.json  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
 #
-# Run:  python bot.py   then open http://localhost:7860/client
+# Run:  python src/bot.py   (from backend/) then open http://localhost:7860/client
+#       AGENT_ID=<id> python src/bot.py   to run an agent saved in the Composer
 #
 
 import os
-from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
@@ -35,15 +35,28 @@ from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
+from storage import AgentRepository, agents_db_path
+from storage.config import BACKEND_DIR
 
-# Load .env next to this file, so the bot runs the same from the repo root or backend/.
-load_dotenv(Path(__file__).parent / ".env", override=True)
+# Load backend/.env, so the bot runs the same from the repo root or backend/.
+load_dotenv(BACKEND_DIR / ".env", override=True)
 
 
-# The agent this bot runs. Point this at any agent JSON (the Phase 2 Composer
-# would generate one and drop it here). Override with AGENT_FLOW=agents/<id>.json,
-# resolved relative to this file.
-AGENT_FLOW = Path(__file__).parent / os.getenv("AGENT_FLOW", "example_flow.json")
+# The agent this bot runs:
+#   AGENT_ID=<id>          an agent saved in the Composer (loaded from the agent database)
+#   AGENT_FLOW=<file>      a loose agent JSON file, relative to backend/
+# With neither, it runs example_flow.json.
+AGENT_ID = os.getenv("AGENT_ID")
+AGENT_FLOW = BACKEND_DIR / os.getenv("AGENT_FLOW", "example_flow.json")
+
+
+def load_agent() -> AgentBuilder:
+    """Read the agent fresh on every call, so edits saved in the UI apply to the next call."""
+    if AGENT_ID:
+        record = AgentRepository(agents_db_path()).get(AGENT_ID)
+        logger.info(f"Loaded agent '{AGENT_ID}' v{record.version} from the database")
+        return AgentBuilder.from_dict(record.body)
+    return AgentBuilder.from_json(AGENT_FLOW)
 
 
 transport_params = {
@@ -113,7 +126,7 @@ async def run_bot(
 async def bot(runner_args: RunnerArguments):
     """Entry point invoked by the Pipecat dev runner (and Pipecat Cloud)."""
     transport = await create_transport(runner_args, transport_params)
-    builder = AgentBuilder.from_json(AGENT_FLOW)
+    builder = load_agent()
     await run_bot(transport, runner_args, builder)
 
 

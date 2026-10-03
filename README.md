@@ -17,7 +17,7 @@ Requires **Python 3.11+** and [**uv**](https://docs.astral.sh/uv/getting-started
 
 ```bash
 make install   # uv sync — creates backend/.venv and installs from uv.lock
-make run       # uv run python bot.py
+make run       # uv run python src/bot.py
 ```
 
 Open the URL it prints (default `http://localhost:7860/client`), click **Connect**, allow mic access, and talk to the agent. `Ctrl+C` to stop. (`make help` lists all targets.)
@@ -26,7 +26,7 @@ Prefer raw `uv`? The same commands without `make`:
 
 ```bash
 uv sync --directory backend            # install dependencies
-uv run --directory backend python bot.py   # run the agent
+uv run --directory backend python src/bot.py   # run the agent
 ```\
 \
 Remember to update the `.env` file accordingly.
@@ -47,9 +47,9 @@ Create an agent, write its personality (system prompt), add nodes, and drag betw
 
 | Path | Responsibility |
 | --- | --- |
-| `backend/bot.py` | The voice pipeline (WebRTC + ElevenLabs STT/TTS + OpenAI LLM). Loads an agent JSON via `AgentBuilder` and runs it. No graph logic lives here. |
-| `backend/agent_builder/` | All agent-building code. `schema.py` = the declarative `AgentConfig` / `Node` / `Edge` contract; `builder.py` = `AgentBuilder`, which loads + validates the JSON and compiles it into a Pipecat Flows graph. |
-| `backend/api.py` | FastAPI CRUD over `backend/agents/*.json` for the UI; validates every save with `AgentBuilder`. |
+| `backend/src/bot.py` | The voice pipeline (WebRTC + ElevenLabs STT/TTS + OpenAI LLM). Loads an agent JSON via `AgentBuilder` and runs it. No graph logic lives here. |
+| `backend/src/agent_builder/` | All agent-building code. `schema.py` = the declarative `AgentConfig` / `Node` / `Edge` contract; `builder.py` = `AgentBuilder`, which loads + validates the JSON and compiles it into a Pipecat Flows graph. |
+| `backend/src/api.py` | FastAPI CRUD over `backend/agents/*.json` for the UI; validates every save with `AgentBuilder`. |
 | `frontend/` | Agent Composer UI (Vite + React + `@xyflow/react`, SCSS modules). Pages in `src/pages/`, shared API/types/UI kit in `src/shared/`. `make web-check` runs typecheck, lint, format check and tests. |
 | `backend/example_flow.json` | The example agent **as data** — a clinic scheduler. The artifact the Phase 2 Composer generates/edits. |
 

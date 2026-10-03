@@ -16,6 +16,11 @@ export class ApiError extends Error {
   get isValidation(): boolean {
     return this.status === 422;
   }
+
+  /** Someone saved the agent after it was loaded (stale If-Match). */
+  get isConflict(): boolean {
+    return this.status === 409;
+  }
 }
 
 const API_BASE = "/api";

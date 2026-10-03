@@ -17,6 +17,21 @@ dependencies = [
 ]
 
 [tool.uv]
-# This is an application (flat modules: bot.py + agent_builder/), not a
+# This is an application (flat modules under src/: bot.py, api.py, agent_builder/, storage/), not a
 # distributable library — manage the environment, don't build/install a package.
 package = false
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.13.1",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
+filterwarnings = [
+    # Third-party, not ours: pipecat still imports audioop (removed in Python 3.13).
+    "ignore:'audioop' is deprecated:DeprecationWarning",
+]

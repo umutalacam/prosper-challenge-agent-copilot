@@ -4,7 +4,7 @@
 PROJECT := backend
 FRONTEND := frontend
 
-.PHONY: help install dev run api web-install web web-check clean
+.PHONY: help install dev run api api-test web-install web web-check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -19,11 +19,14 @@ dev: $(FRONTEND)/node_modules ## Run API + UI + voice bot together (Ctrl+C stops
 	@echo "Voice -> http://localhost:7860/client  (agent: $${AGENT_FLOW:-example_flow.json})"
 	@$(MAKE) --no-print-directory -j3 api web run
 
-run: ## Run the voice agent (then open http://localhost:7860/client)
-	uv run --directory $(PROJECT) python bot.py
+run: ## Run the voice agent (AGENT_ID=<id> for a saved agent; then open http://localhost:7860/client)
+	uv run --directory $(PROJECT) python src/bot.py
 
 api: ## Run the agent CRUD API on :8000 (used by the web UI)
-	uv run --directory $(PROJECT) uvicorn api:app --reload --port 8000
+	uv run --directory $(PROJECT) uvicorn api:app --app-dir src --reload --reload-dir src --port 8000
+
+api-test: ## Run the backend tests (pytest)
+	uv run --directory $(PROJECT) pytest
 
 web-install: ## Install frontend dependencies (npm)
 	npm install --prefix $(FRONTEND)

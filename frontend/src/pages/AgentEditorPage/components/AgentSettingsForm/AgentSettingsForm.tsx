@@ -90,7 +90,7 @@ export function AgentSettingsForm({ agentId }: AgentSettingsFormProps) {
         {agentId ? (
           <>
             Test it in the voice bot:
-            <code className={styles.command}>AGENT_FLOW=agents/{agentId}.json make run</code>
+            <code className={styles.command}>AGENT_ID={agentId} make run</code>
           </>
         ) : (
           "Save this agent to test it in the voice bot."

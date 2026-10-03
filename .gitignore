@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 
+# ---- Agent database (local data; schema + sample data live in backend/config/*.sql) ----
+backend/data/
+
 # ---- Python ----
 __pycache__/
 *.py[cod]

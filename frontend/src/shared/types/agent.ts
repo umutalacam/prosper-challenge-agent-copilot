@@ -50,13 +50,17 @@ export interface Agent {
   nodes: AgentNode[];
 }
 
-/** An agent as stored by the API, identified by its file slug. */
+/** An agent as stored by the API. `version` increases on every save. */
 export interface StoredAgent extends Agent {
   id: string;
+  version: number;
+  updated_at: string;
 }
 
 export interface AgentSummary {
   id: string;
   name: string;
   node_count: number;
+  version: number;
+  updated_at: string;
 }

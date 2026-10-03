@@ -5,6 +5,8 @@ describe("normalizeAgent", () => {
   it("fills the fields schema.py lets JSON omit", () => {
     const agent = normalizeAgent({
       id: "a",
+      version: 1,
+      updated_at: "2026-10-03T00:00:00.000+00:00",
       name: "A",
       initial_node: "end",
       nodes: [
@@ -19,6 +21,8 @@ describe("normalizeAgent", () => {
   it("defaults a missing edges list to empty", () => {
     const agent = normalizeAgent({
       id: "a",
+      version: 1,
+      updated_at: "2026-10-03T00:00:00.000+00:00",
       name: "A",
       persona: "p",
       initial_node: "n",

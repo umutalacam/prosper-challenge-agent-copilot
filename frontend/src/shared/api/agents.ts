@@ -34,8 +34,13 @@ export function normalizeAgent(agent: WireAgent): StoredAgent {
   };
 }
 
-/** Strip the API id: the backend derives it from the URL, not the body. */
-function toBody({ id: _id, ...agent }: Agent & { id?: string }): string {
+/** Send only the agent document; id/version/updated_at are the server's metadata. */
+function toBody({
+  id: _id,
+  version: _version,
+  updated_at: _updatedAt,
+  ...agent
+}: Agent & Partial<Pick<StoredAgent, "id" | "version" | "updated_at">>): string {
   return JSON.stringify(agent);
 }
 
@@ -48,10 +53,12 @@ export const agentsApi = {
   create: async (agent: Agent) =>
     normalizeAgent(await request<WireAgent>("/agents", { method: "POST", body: toBody(agent) })),
 
-  update: async (id: string, agent: Agent) =>
+  /** Save over `version`; the server answers 409 if it has moved on since. */
+  update: async (id: string, agent: Agent, version: number) =>
     normalizeAgent(
       await request<WireAgent>(`/agents/${encodeURIComponent(id)}`, {
         method: "PUT",
+        headers: { "If-Match": `"${version}"` },
         body: toBody(agent),
       }),
     ),

@@ -44,6 +44,6 @@ function StoredAgentEditor({ agentId }: { agentId: string }) {
     );
   }
 
-  const { id: _id, ...agent } = query.data;
-  return <AgentEditor agentId={agentId} initialAgent={agent} />;
+  const { id: _id, version, updated_at: _updatedAt, ...agent } = query.data;
+  return <AgentEditor agentId={agentId} initialAgent={agent} initialVersion={version} />;
 }

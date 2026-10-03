@@ -3,7 +3,7 @@ import { clsx } from "clsx";
 import { useMemo, useReducer, useState } from "react";
 import { useNavigate } from "react-router";
 import { useAgentsLayout } from "@/pages/AgentsLayout/layoutContext";
-import { errorMessage, useDeleteAgent, useSaveAgent } from "@/shared/api";
+import { ApiError, errorMessage, useDeleteAgent, useSaveAgent } from "@/shared/api";
 import type { Agent } from "@/shared/types/agent";
 import { Banner, useConfirm } from "@/shared/ui";
 import { EditorToolbar } from "./components/EditorToolbar/EditorToolbar";
@@ -17,22 +17,28 @@ import { EditorContext } from "./state/editorContext";
 import { createEditorState, editorReducer, NO_SELECTION } from "./state/editorReducer";
 import styles from "./AgentEditor.module.scss";
 
-export interface AgentEditorProps {
-  /** The stored agent's id, or null for a new, never-saved agent. */
-  agentId: string | null;
-  initialAgent: Agent;
-}
+export type AgentEditorProps =
+  /** A new, never-saved agent. */
+  | { agentId: null; initialAgent: Agent; initialVersion?: undefined }
+  /** A stored agent, at the version it was loaded at. */
+  | { agentId: string; initialAgent: Agent; initialVersion: number };
+
+const CONFLICT_MESSAGE =
+  "Someone else saved this agent since you opened it, so your save was blocked to avoid " +
+  "overwriting their changes. Copy anything you need, then reload to get the latest version.";
 
 /**
  * Owns one agent's working copy (the reducer) plus save/delete, and lays out the
  * editor: a full-bleed canvas with the toolbar and inspector card floating over it.
  * Mount it with a `key` per agent so switching agents starts from a fresh state.
  */
-export function AgentEditor({ agentId, initialAgent }: AgentEditorProps) {
+export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEditorProps) {
   const [state, dispatch] = useReducer(editorReducer, initialAgent, (agent) =>
     // A brand-new agent opens on its settings so the first thing you do is name it.
     createEditorState(withPositions(agent), agentId ? NO_SELECTION : { kind: "agent" }),
   );
+  // The stored version this working copy is based on; sent as If-Match on save.
+  const [version, setVersion] = useState(initialVersion);
   const [fitViewRequest, setFitViewRequest] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,15 +53,20 @@ export function AgentEditor({ agentId, initialAgent }: AgentEditorProps) {
     if (!state.dirty || saveAgent.isPending) return;
     const snapshot = state.agent;
     try {
-      const saved = await saveAgent.mutateAsync({ id: agentId, agent: snapshot });
+      const saved = await saveAgent.mutateAsync(
+        agentId === null || version === undefined
+          ? { id: null, agent: snapshot }
+          : { id: agentId, agent: snapshot, version },
+      );
       dispatch({ type: "saved", agent: snapshot });
+      setVersion(saved.version);
       setError(null);
       if (!agentId) {
         allowNextNavigation();
         void navigate(`/agents/${saved.id}`, { replace: true });
       }
     } catch (e) {
-      setError(errorMessage(e));
+      setError(e instanceof ApiError && e.isConflict ? CONFLICT_MESSAGE : errorMessage(e));
     }
   };
 

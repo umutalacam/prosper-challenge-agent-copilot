@@ -23,12 +23,16 @@ export function useAgent(id: string) {
   });
 }
 
-/** Create (no id) or update (id) an agent; keeps the list and detail caches in sync. */
+/** A new agent (`id: null`), or an update to the stored `version` of agent `id`. */
+export type SaveAgentInput =
+  { id: null; agent: Agent; version?: undefined } | { id: string; agent: Agent; version: number };
+
+/** Create or update an agent; keeps the list and detail caches in sync. */
 export function useSaveAgent() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, agent }: { id: string | null; agent: Agent }) =>
-      id ? agentsApi.update(id, agent) : agentsApi.create(agent),
+    mutationFn: ({ id, agent, version }: SaveAgentInput) =>
+      id === null ? agentsApi.create(agent) : agentsApi.update(id, agent, version),
     onSuccess: (saved: StoredAgent) => {
       queryClient.setQueryData(agentKeys.detail(saved.id), saved);
       return queryClient.invalidateQueries({ queryKey: agentKeys.list() });
