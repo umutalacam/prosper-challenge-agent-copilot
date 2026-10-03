@@ -110,3 +110,24 @@ def test_providers_are_singletons_and_overridable(tmp_path, monkeypatch):
     app.dependency_overrides[get_agent_repository] = lambda: other
     with TestClient(app) as client:
         assert [a["id"] for a in client.get("/api/agents").json()] == ["override"]
+
+
+def test_bot_switches_to_a_saved_agent(client: TestClient):
+    assert client.get("/api/bot").status_code == 200
+    response = client.put("/api/bot", json={"agent_id": "prosper-scheduler"})
+    assert response.status_code == 200
+    assert response.json()["agent_id"] == "prosper-scheduler"
+    assert response.json()["client_url"].endswith("/client/")
+
+
+def test_bot_refuses_unknown_agents(client: TestClient):
+    before = client.get("/api/bot").json()["agent_id"]
+    assert client.put("/api/bot", json={"agent_id": "nope"}).status_code == 404
+    assert client.get("/api/bot").json()["agent_id"] == before
+
+
+def test_voice_client_and_signaling_are_served(client: TestClient):
+    assert client.get("/client/").status_code == 200
+    assert client.get("/", follow_redirects=False).headers["location"] == "/client/"
+    assert "sessionId" in client.post("/start", json={}).json()
+    assert client.post("/api/offer", json={}).status_code == 400

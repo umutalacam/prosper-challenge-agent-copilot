@@ -1,20 +1,13 @@
 #
-# Voice pipeline — Prosper Product Engineer Challenge
+# Voice pipeline: WebRTC transport + ElevenLabs STT/TTS + OpenAI LLM, driven by a
+# Pipecat Flows node graph. Generic: it runs whatever AgentBuilder it's given and
+# holds no graph logic. Which agent a call gets is BotService's job (service.py).
 #
-# The runnable voice agent: WebRTC transport + ElevenLabs STT/TTS + OpenAI LLM,
-# driven by a Pipecat Flows node graph. This file is generic — it loads an agent
-# definition (JSON) via AgentBuilder and runs it. Swapping the agent is a data
-# change (edit/replace the JSON), not a code change.
-#
-#   example_flow.json  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
-#
-# Run:  python src/bot.py   (from backend/) then open http://localhost:7860/client
-#       AGENT_ID=<id> python src/bot.py   to run an agent saved in the Composer
+#   agent JSON  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
 #
 
 import os
 
-from dotenv import load_dotenv
 from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
@@ -35,29 +28,6 @@ from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
-from config import BACKEND_DIR
-from dependencies import get_agent_repository
-
-# Load backend/.env, so the bot runs the same from the repo root or backend/.
-load_dotenv(BACKEND_DIR / ".env", override=True)
-
-
-# The agent this bot runs:
-#   AGENT_ID=<id>          an agent saved in the Composer (loaded from the agent database)
-#   AGENT_FLOW=<file>      a loose agent JSON file, relative to backend/
-# With neither, it runs example_flow.json.
-AGENT_ID = os.getenv("AGENT_ID")
-AGENT_FLOW = BACKEND_DIR / os.getenv("AGENT_FLOW", "example_flow.json")
-
-
-def load_agent() -> AgentBuilder:
-    """Read the agent fresh on every call, so edits saved in the UI apply to the next call."""
-    if AGENT_ID:
-        record = get_agent_repository().get(AGENT_ID)
-        logger.info(f"Loaded agent '{AGENT_ID}' v{record.version} from the database")
-        return AgentBuilder.from_dict(record.body)
-    return AgentBuilder.from_json(AGENT_FLOW)
-
 
 transport_params = {
     "webrtc": lambda: TransportParams(audio_in_enabled=True, audio_out_enabled=True),
@@ -123,14 +93,7 @@ async def run_bot(
     await runner.run()
 
 
-async def bot(runner_args: RunnerArguments):
-    """Entry point invoked by the Pipecat dev runner (and Pipecat Cloud)."""
+async def run_call(runner_args: RunnerArguments, builder: AgentBuilder) -> None:
+    """One call: build the transport for its WebRTC connection, then run the pipeline."""
     transport = await create_transport(runner_args, transport_params)
-    builder = load_agent()
     await run_bot(transport, runner_args, builder)
-
-
-if __name__ == "__main__":
-    from pipecat.runner.run import main
-
-    main()

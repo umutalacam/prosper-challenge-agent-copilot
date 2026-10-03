@@ -1,10 +1,9 @@
 #
 # Dependency providers. Each is cached with @lru_cache, so the app shares one
-# instance per process (a singleton "bean"): one repository, one service.
+# instance per process (a singleton "bean"): one repository, one service, one bot.
 #
 # Routes ask for them with Depends(...); tests replace one with
 #   app.dependency_overrides[get_agent_repository] = lambda: test_repository
-# Outside a request (the voice bot), call them directly: get_agent_repository().
 #
 # (No `from __future__ import annotations` here: FastAPI reads these signatures
 # through the lru_cache wrapper, which needs real annotation objects.)
@@ -17,6 +16,7 @@ from fastapi import Depends
 
 from api.agents.repository import AgentRepository
 from api.agents.service import AgentService
+from api.bot.service import BotService
 from config import SEED_SQL, agents_db_path
 
 
@@ -32,3 +32,11 @@ def get_agent_service(
 ) -> AgentService:
     # Cached per repository instance, so an overridden repository gets its own service.
     return AgentService(repository)
+
+
+@lru_cache
+def get_bot_service(
+    agents: Annotated[AgentService, Depends(get_agent_service)],
+) -> BotService:
+    # One per process: it owns the WebRTC connections and the running calls.
+    return BotService(agents)

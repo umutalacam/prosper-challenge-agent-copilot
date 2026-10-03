@@ -13,7 +13,7 @@ export default defineConfig({
   server: {
     port: 5173,
     // The agent API (backend/api.py, `make api`).
-    proxy: { "/api": "http://localhost:8000" },
+    proxy: { "/api": "http://localhost:7860" },
   },
   test: {
     environment: "jsdom",

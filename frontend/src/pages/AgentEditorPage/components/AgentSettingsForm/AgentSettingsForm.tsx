@@ -89,8 +89,10 @@ export function AgentSettingsForm({ agentId }: AgentSettingsFormProps) {
       <div className={styles.callout}>
         {agentId ? (
           <>
-            Test it in the voice bot:
-            <code className={styles.command}>AGENT_ID={agentId} make run</code>
+            Test it in the voice bot (then open localhost:7860/client):
+            <code className={styles.command}>
+              {`curl -X PUT localhost:7860/api/bot -H 'content-type: application/json' -d '{"agent_id":"${agentId}"}'`}
+            </code>
           </>
         ) : (
           "Save this agent to test it in the voice bot."

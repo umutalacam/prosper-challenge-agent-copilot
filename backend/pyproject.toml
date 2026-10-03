@@ -17,7 +17,7 @@ dependencies = [
 ]
 
 [tool.uv]
-# This is an application (top-level modules under src/: main.py, bot.py, api/, agent_builder/…), not a
+# This is an application (top-level modules under src/: main.py, api/, agent_builder/…), not a
 # distributable library — manage the environment, don't build/install a package.
 package = false
 
@@ -32,6 +32,8 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-q"
 filterwarnings = [
-    # Third-party, not ours: pipecat still imports audioop (removed in Python 3.13).
+    # Third-party, not ours: pipecat still imports audioop (removed in Python 3.13)
+    # and its ElevenLabs TTS subclasses a deprecated base.
     "ignore:'audioop' is deprecated:DeprecationWarning",
+    "ignore:`AudioContextTTSService` is deprecated:DeprecationWarning",
 ]

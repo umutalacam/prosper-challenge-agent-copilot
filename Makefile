@@ -3,8 +3,10 @@
 
 PROJECT := backend
 FRONTEND := frontend
+# API + voice bot. 7860 is where the voice client has always lived (:7860/client).
+PORT := 7860
 
-.PHONY: help install dev run api api-test web-install web web-check clean
+.PHONY: help install dev api api-test web-install web web-check clean
 
 help: ## Show available targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -14,16 +16,13 @@ install: ## Install backend (uv) and frontend (npm) dependencies
 	uv sync --directory $(PROJECT)
 	npm install --prefix $(FRONTEND)
 
-dev: $(FRONTEND)/node_modules ## Run API + UI + voice bot together (Ctrl+C stops all)
+dev: $(FRONTEND)/node_modules ## Run API + voice bot + UI together (Ctrl+C stops all)
 	@echo "UI    -> http://localhost:5173"
-	@echo "Voice -> http://localhost:7860/client  (agent: $${AGENT_FLOW:-example_flow.json})"
-	@$(MAKE) --no-print-directory -j3 api web run
+	@echo "Voice -> http://localhost:$(PORT)/client  (switch agents: PUT /api/bot {\"agent_id\": ...})"
+	@$(MAKE) --no-print-directory -j2 api web
 
-run: ## Run the voice agent (AGENT_ID=<id> for a saved agent; then open http://localhost:7860/client)
-	uv run --directory $(PROJECT) python src/bot.py
-
-api: ## Run the agent CRUD API on :8000 (used by the web UI)
-	uv run --directory $(PROJECT) uvicorn main:app --app-dir src --reload --reload-dir src --port 8000
+api: ## Run the agent API + voice bot on :7860 (talk at /client; AGENT_ID=<id> sets the default agent)
+	uv run --directory $(PROJECT) uvicorn main:app --app-dir src --reload --reload-dir src --port $(PORT)
 
 api-test: ## Run the backend tests (pytest)
 	uv run --directory $(PROJECT) pytest

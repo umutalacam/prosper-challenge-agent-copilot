@@ -5,8 +5,8 @@
 #   JSON  ->  AgentConfig (validated)  ->  Pipecat Flows NodeConfig graph
 #
 # This is the seam between "agent as data" (what the Phase 2 Composer produces)
-# and "agent as a running conversation" (what bot.py executes). Keeping the
-# compile + validation here means bot.py never touches the graph internals.
+# and "agent as a running conversation" (what the voice pipeline, api/bot/pipeline.py, executes). Keeping the
+# compile + validation here means the pipeline never touches the graph internals.
 #
 
 import json
