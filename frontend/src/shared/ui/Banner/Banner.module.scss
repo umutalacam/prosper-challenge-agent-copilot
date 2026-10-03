@@ -1,0 +1,11 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.banner {
+  @include m.cluster($space-3);
+  justify-content: space-between;
+  padding: $space-2 $space-4;
+  border-bottom: 1px solid $color-danger-border;
+  background: $color-danger-soft;
+  color: $color-danger;
+}

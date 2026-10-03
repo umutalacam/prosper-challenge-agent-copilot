@@ -1,0 +1,75 @@
+// Shared SCSS mixins. Use from a component module with:
+//   @use "@/shared/styles/mixins" as m;
+// (alongside `@use "@/shared/styles/tokens" as *;` for the variables).
+
+@use "tokens" as *;
+
+@mixin focus-ring {
+  outline: 3px solid $color-brand-soft;
+  outline-offset: 0;
+  border-color: $color-brand;
+}
+
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@mixin line-clamp($lines) {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $lines;
+}
+
+@mixin stack($gap: $space-3) {
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+}
+
+@mixin cluster($gap: $space-2) {
+  display: flex;
+  align-items: center;
+  gap: $gap;
+}
+
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/** Base look shared by text inputs, textareas and selects. */
+@mixin control {
+  width: 100%;
+  padding: 6px $space-2;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  background: $color-surface;
+  color: $color-text;
+  font: inherit;
+
+  &:focus-visible {
+    @include focus-ring;
+  }
+
+  &[aria-invalid="true"] {
+    border-color: $color-danger;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@mixin panel-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  background: $color-surface;
+}

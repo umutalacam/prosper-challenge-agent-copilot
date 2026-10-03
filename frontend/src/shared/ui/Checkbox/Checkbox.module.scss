@@ -1,0 +1,15 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.checkbox {
+  @include m.cluster(6px);
+  cursor: pointer;
+}
+
+.input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: $color-accent;
+  cursor: pointer;
+}

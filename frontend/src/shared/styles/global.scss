@@ -1,0 +1,48 @@
+// Global styles: base typography, a minimal reset and third-party (React Flow) theming.
+// Everything component-specific lives in that component's *.module.scss.
+
+@use "tokens" as *;
+
+:root {
+  font-family: $font-family;
+  font-size: $font-size-md;
+  line-height: 1.4;
+  color: $color-text;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: $color-bg;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+#root {
+  height: 100vh;
+}
+
+// React Flow is themed through its own CSS custom properties (its API, not ours).
+// Sass doesn't evaluate custom property values, hence the #{} interpolation.
+.react-flow {
+  --xy-edge-stroke-selected: #{$color-brand};
+  --xy-connectionline-stroke: #{$color-brand};
+  --xy-handle-background-color: #{$color-brand};
+  --xy-handle-border-color: #{$color-surface};
+}
+
+.react-flow__edge.selected .react-flow__edge-text {
+  fill: $color-accent;
+  font-weight: 600;
+}

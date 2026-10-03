@@ -1,0 +1,18 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.brand {
+  @include m.stack(6px);
+}
+
+.logo {
+  display: block;
+}
+
+.product {
+  font-size: $font-size-sm;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: $color-text-muted;
+}

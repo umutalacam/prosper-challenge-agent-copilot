@@ -1,0 +1,61 @@
+// Design tokens as SCSS variables, resolved at compile time. Use from a module with:
+//   @use "@/shared/styles/tokens" as *;
+
+// ---- color ----
+// Prosper brand #ff421c comes from assets/prosper_logo.png. `$color-brand` is for
+// marks, rings and accents; `$color-accent` is a deeper shade that keeps white text
+// above WCAG AA (4.7:1) for filled buttons and colored text.
+$color-brand: #ff421c;
+$color-brand-soft: #fff0ec;
+$color-accent: #d9330d;
+$color-accent-hover: #c92e0b;
+
+$color-bg: #f7f6f5;
+$color-surface: #ffffff;
+$color-surface-sunken: #f7f6f5;
+$color-border: #e7e3e1;
+$color-border-strong: #d3cdca;
+
+$color-text: #1d1b1a;
+$color-text-muted: #6e6866;
+$color-text-on-accent: #ffffff;
+
+$color-success: #2b8a3e;
+$color-success-soft: #e3f6e8;
+$color-neutral: #4b5563;
+$color-neutral-soft: #eceef1;
+$color-danger: #b42318;
+$color-danger-soft: #fef3f2;
+$color-danger-border: #fecdca;
+
+// ---- spacing (4px scale) ----
+$space-1: 4px;
+$space-2: 8px;
+$space-3: 12px;
+$space-4: 16px;
+$space-5: 20px;
+$space-6: 24px;
+$space-8: 32px;
+
+// ---- radius ----
+$radius-sm: 6px;
+$radius-md: 8px;
+$radius-lg: 10px;
+$radius-pill: 999px;
+
+// ---- typography ----
+$font-family:
+  Inter,
+  system-ui,
+  -apple-system,
+  "Segoe UI",
+  sans-serif;
+$font-family-mono: ui-monospace, "SF Mono", Menlo, monospace;
+$font-size-xs: 11px;
+$font-size-sm: 12px;
+$font-size-md: 14px;
+$font-size-lg: 16px;
+
+// ---- elevation ----
+$shadow-sm: 0 1px 3px rgb(0 0 0 / 6%);
+$shadow-md: 0 8px 24px rgb(0 0 0 / 12%);

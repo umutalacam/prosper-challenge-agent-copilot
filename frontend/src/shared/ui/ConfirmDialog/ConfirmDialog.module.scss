@@ -1,0 +1,35 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.dialog {
+  @include m.stack($space-3);
+  width: min(420px, calc(100vw - 32px));
+  padding: $space-5;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  color: $color-text;
+  box-shadow: $shadow-md;
+
+  &:not([open]) {
+    display: none;
+  }
+
+  &::backdrop {
+    background: rgb(29 27 26 / 35%);
+  }
+}
+
+.title {
+  font-size: $font-size-lg;
+}
+
+.description {
+  color: $color-text-muted;
+}
+
+.actions {
+  @include m.cluster($space-2);
+  justify-content: flex-end;
+  margin-top: $space-2;
+}

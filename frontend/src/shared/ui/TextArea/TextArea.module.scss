@@ -1,0 +1,6 @@
+@use "@/shared/styles/mixins" as m;
+
+.textArea {
+  @include m.control;
+  resize: vertical;
+}

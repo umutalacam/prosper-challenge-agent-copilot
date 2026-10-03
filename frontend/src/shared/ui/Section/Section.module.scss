@@ -1,0 +1,21 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.section {
+  @include m.stack($space-2);
+  min-width: 0;
+  margin: 0;
+  padding: $space-3;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+}
+
+.title {
+  padding: 0 $space-1;
+  font-weight: 500;
+}
+
+.description {
+  font-size: $font-size-sm;
+  color: $color-text-muted;
+}

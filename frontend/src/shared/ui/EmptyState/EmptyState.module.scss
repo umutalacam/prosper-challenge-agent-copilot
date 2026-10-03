@@ -1,0 +1,19 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.emptyState {
+  @include m.stack($space-3);
+  align-items: center;
+  max-width: 360px;
+  margin: auto;
+  padding: $space-8;
+  text-align: center;
+}
+
+.title {
+  font-size: $font-size-lg;
+}
+
+.description {
+  color: $color-text-muted;
+}

@@ -1,0 +1,6 @@
+@use "@/shared/styles/mixins" as m;
+
+.select {
+  @include m.control;
+  cursor: pointer;
+}

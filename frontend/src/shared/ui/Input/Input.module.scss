@@ -1,0 +1,5 @@
+@use "@/shared/styles/mixins" as m;
+
+.input {
+  @include m.control;
+}

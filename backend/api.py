@@ -21,6 +21,7 @@ BACKEND_DIR = Path(__file__).parent
 AGENTS_DIR = BACKEND_DIR / "agents"
 EXAMPLE_FLOW = BACKEND_DIR / "example_flow.json"
 
+
 # ---- helpers ---------------------------------------------------------------
 def _slugify(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "agent"

@@ -31,12 +31,26 @@ uv run --directory backend python bot.py   # run the agent
 \
 Remember to update the `.env` file accordingly.
 
+## Agent Composer UI
+
+A React + React Flow editor for building agents as node graphs. Requires Node.js 18+. Bring up everything with one command:
+
+```bash
+make dev   # agent API (:8000) + UI (http://localhost:5173) + voice bot (:7860); Ctrl+C stops all
+```
+
+Or run the pieces separately: `make api`, `make web`, `make run`.
+
+Create an agent, write its personality (system prompt), add nodes, and drag between nodes to create **actions** (functions the LLM calls to move on, with fields to collect). Every save is validated by `AgentBuilder`. To call a saved agent: `AGENT_FLOW=agents/<id>.json make run`.
+
 ## Layout
 
 | Path | Responsibility |
 | --- | --- |
 | `backend/bot.py` | The voice pipeline (WebRTC + ElevenLabs STT/TTS + OpenAI LLM). Loads an agent JSON via `AgentBuilder` and runs it. No graph logic lives here. |
 | `backend/agent_builder/` | All agent-building code. `schema.py` = the declarative `AgentConfig` / `Node` / `Edge` contract; `builder.py` = `AgentBuilder`, which loads + validates the JSON and compiles it into a Pipecat Flows graph. |
+| `backend/api.py` | FastAPI CRUD over `backend/agents/*.json` for the UI; validates every save with `AgentBuilder`. |
+| `frontend/` | Agent Composer UI (Vite + React + `@xyflow/react`, SCSS modules). Pages in `src/pages/`, shared API/types/UI kit in `src/shared/`. `make web-check` runs typecheck, lint, format check and tests. |
 | `backend/example_flow.json` | The example agent **as data** — a clinic scheduler. The artifact the Phase 2 Composer generates/edits. |
 
-To run a different agent, point `AGENT_FLOW` in `bot.py` at another JSON file.
+To run a different agent, set `AGENT_FLOW` (path relative to `backend/`), e.g. `AGENT_FLOW=agents/my-agent.json make run`.

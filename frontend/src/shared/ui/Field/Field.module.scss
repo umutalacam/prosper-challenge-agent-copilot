@@ -1,0 +1,20 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.field {
+  @include m.stack($space-1);
+}
+
+.label {
+  font-weight: 500;
+}
+
+.hint {
+  font-size: $font-size-sm;
+  color: $color-text-muted;
+}
+
+.error {
+  font-size: $font-size-sm;
+  color: $color-danger;
+}
