@@ -41,8 +41,9 @@ load_dotenv(Path(__file__).parent / ".env", override=True)
 
 
 # The agent this bot runs. Point this at any agent JSON (the Phase 2 Composer
-# would generate one and drop it here).
-AGENT_FLOW = Path(__file__).parent / "example_flow.json"
+# would generate one and drop it here). Override with AGENT_FLOW=agents/<id>.json,
+# resolved relative to this file.
+AGENT_FLOW = Path(__file__).parent / os.getenv("AGENT_FLOW", "example_flow.json")
 
 
 transport_params = {

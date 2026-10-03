@@ -13,6 +13,7 @@ dependencies = [
     "pipecat-ai[runner,webrtc,silero,elevenlabs,openai]>=1.4.0,<2",
     # Pipecat Flows: node-graph conversations (used by the agent builder + bot).
     "pipecat-ai-flows>=1.3.0,<2",
+    "fastapi>=0.138.2",
 ]
 
 [tool.uv]

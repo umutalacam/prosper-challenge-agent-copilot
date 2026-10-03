@@ -42,11 +42,18 @@ class AgentBuilder:
         names = set(self._nodes_by_name)
         if not names:
             raise ValueError("Agent has no nodes.")
+        if len(names) != len(self.config.nodes):
+            raise ValueError("Node names must be unique.")
         if self.config.initial_node not in names:
             raise ValueError(
                 f"initial_node '{self.config.initial_node}' is not a defined node."
             )
         for node in self.config.nodes:
+            functions = [edge.function for edge in node.edges]
+            if len(functions) != len(set(functions)):
+                raise ValueError(
+                    f"Action names in node '{node.name}' must be unique."
+                )
             for edge in node.edges:
                 if edge.target not in names:
                     raise ValueError(
