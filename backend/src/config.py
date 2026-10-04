@@ -12,6 +12,10 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 CONFIG_DIR = BACKEND_DIR / "config"
 SCHEMA_SQL = CONFIG_DIR / "schema.sql"  # DDL, applied on every start (idempotent)
 SEED_SQL = CONFIG_DIR / "seed.sql"  # sample data, loaded only into an empty database
+COPILOT_PROMPT = CONFIG_DIR / "copilot_prompt.md"  # the copilot's system prompt, read every turn
+
+# The OpenAI model behind the agent copilot.
+COPILOT_MODEL = os.getenv("COPILOT_MODEL", "gpt-4o")
 
 # Where the agent database lives. Override with AGENTS_DB (relative to backend/).
 DEFAULT_DB_PATH = BACKEND_DIR / "data" / "agents.db"

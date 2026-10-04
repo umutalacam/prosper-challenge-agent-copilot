@@ -13,11 +13,13 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
+from openai import AsyncOpenAI
 
 from api.agents.repository import AgentRepository
 from api.agents.service import AgentService
 from api.bot.service import BotService
-from config import SEED_SQL, agents_db_path
+from api.copilot.service import CopilotService
+from config import COPILOT_MODEL, COPILOT_PROMPT, SEED_SQL, agents_db_path
 
 
 @lru_cache
@@ -40,3 +42,9 @@ def get_bot_service(
 ) -> BotService:
     # One per process: it owns the WebRTC connections and the running calls.
     return BotService(agents)
+
+
+@lru_cache
+def get_copilot_service() -> CopilotService:
+    # AsyncOpenAI reads OPENAI_API_KEY from the environment (backend/.env, loaded in main.py).
+    return CopilotService(AsyncOpenAI(), COPILOT_MODEL, COPILOT_PROMPT)

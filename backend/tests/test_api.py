@@ -1,3 +1,4 @@
+import json
 from fastapi.testclient import TestClient
 
 from api.agents.repository import AgentRepository
@@ -131,3 +132,23 @@ def test_voice_client_and_signaling_are_served(client: TestClient):
     assert client.get("/", follow_redirects=False).headers["location"] == "/client/"
     assert "sessionId" in client.post("/start", json={}).json()
     assert client.post("/api/offer", json={}).status_code == 400
+
+
+def test_copilot_streams_ndjson_events(client: TestClient):
+    from dependencies import get_copilot_service
+
+    class FakeCopilot:
+        async def run_turn(self, agent, messages):
+            yield {"type": "reply", "text": f"Got {messages[-1]['content']} for {agent['name']}"}
+            yield {"type": "done"}
+
+    client.app.dependency_overrides[get_copilot_service] = lambda: FakeCopilot()
+    body = {"agent": {"name": "A"}, "messages": [{"role": "user", "content": "hi"}]}
+    response = client.post("/api/copilot/turns", json=body)
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+    assert [json.loads(line) for line in response.text.splitlines()] == [
+        {"type": "reply", "text": "Got hi for A"},
+        {"type": "done"},
+    ]
+    body["messages"] = [{"role": "assistant", "content": "hello"}]
+    assert client.post("/api/copilot/turns", json=body).status_code == 422

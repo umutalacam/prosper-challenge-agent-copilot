@@ -1,0 +1,46 @@
+#
+# /api/copilot endpoints. HTTP only: validate the request, stream CopilotService's
+# events back as NDJSON (one JSON object per line) so the editor can show each
+# step as it happens.
+#
+
+import json
+from collections.abc import AsyncIterator
+from typing import Annotated, Any, Literal
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel, Field
+
+from dependencies import get_copilot_service
+
+from .service import CopilotService
+
+router = APIRouter(prefix="/api/copilot", tags=["copilot"])
+
+Copilot = Annotated[CopilotService, Depends(get_copilot_service)]
+
+
+class CopilotMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class CopilotTurnRequest(BaseModel):
+    agent: dict[str, Any]
+    """The editor's working copy (unsaved edits included)."""
+    messages: list[CopilotMessage] = Field(min_length=1)
+    """The conversation so far, ending with the user's new prompt."""
+
+
+@router.post("/turns")
+async def run_turn(request: CopilotTurnRequest, copilot: Copilot) -> StreamingResponse:
+    if request.messages[-1].role != "user":
+        raise HTTPException(422, "The last message must be the user's prompt.")
+
+    async def lines() -> AsyncIterator[str]:
+        messages = [message.model_dump() for message in request.messages]
+        async for event in copilot.run_turn(request.agent, messages):
+            yield json.dumps(event) + "\n"
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson")

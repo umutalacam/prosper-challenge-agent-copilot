@@ -7,6 +7,7 @@
 #   api/agents/repository.py  SQLite
 #   api/bot/                  voice calls: /api/bot (which agent answers), WebRTC
 #                             signaling, and the prebuilt voice client at /client
+#   api/copilot/              the AI copilot that edits an agent: /api/copilot/turns
 #   dependencies.py           the shared instances, injected with Depends
 #
 # Every save is validated by AgentBuilder, the exact code the voice pipeline runs,
@@ -32,10 +33,11 @@ from api.agents.repository import AgentNotFound, VersionConflict
 from api.agents.service import InvalidAgent
 from api.agents.routes import router as agents_router
 from api.bot.routes import CLIENT_PATH, router as bot_router, webrtc_router
+from api.copilot.routes import router as copilot_router
 from config import BACKEND_DIR
 from dependencies import get_agent_repository, get_agent_service, get_bot_service
 
-# OPENAI_API_KEY, ELEVENLABS_API_KEY for the voice pipeline.
+# OPENAI_API_KEY (voice pipeline + copilot), ELEVENLABS_API_KEY (voice pipeline).
 load_dotenv(BACKEND_DIR / ".env", override=True)
 
 
@@ -55,6 +57,7 @@ def create_app() -> FastAPI:
     _register_error_handlers(app)
     app.include_router(agents_router)
     app.include_router(bot_router)
+    app.include_router(copilot_router)
     app.include_router(webrtc_router)
     app.mount(CLIENT_PATH.rstrip("/"), PipecatPrebuiltUI)
 
