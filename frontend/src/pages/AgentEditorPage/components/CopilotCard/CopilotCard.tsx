@@ -2,6 +2,7 @@ import { clsx } from "clsx";
 import { useState } from "react";
 import { CloseIcon, IconButton, SparklesIcon } from "@/shared/ui";
 import type { CopilotTurn } from "../../hooks/useCopilot";
+import { useContentHeight } from "../../hooks/useContentHeight";
 import { useStickToBottom } from "../../hooks/useStickToBottom";
 import styles from "./CopilotCard.module.scss";
 
@@ -24,11 +25,17 @@ export function CopilotCard({ turns, onPickAnswer, onClose }: CopilotCardProps) 
     latest,
     latest?.id,
   );
+  // An explicit height that follows the content, so the card grows (and shrinks) smoothly.
+  const {
+    container: cardRef,
+    content: contentRef,
+    height,
+  } = useContentHeight<HTMLElement, HTMLDivElement>(latest !== undefined, bodyRef);
   if (!latest) return null;
   const earlier = turns.slice(0, -1);
 
   return (
-    <section className={styles.card} aria-label="Copilot">
+    <section className={styles.card} aria-label="Copilot" ref={cardRef} style={{ height }}>
       <header className={styles.header}>
         <SparklesIcon className={styles.mark} width={16} height={16} />
         <h2 className={styles.title}>Copilot</h2>
@@ -38,34 +45,36 @@ export function CopilotCard({ turns, onPickAnswer, onClose }: CopilotCardProps) 
       </header>
 
       <div className={styles.body} ref={bodyRef} onScroll={onBodyScroll}>
-        {earlier.length > 0 && (
-          <>
-            <button
-              type="button"
-              className={styles.earlierToggle}
-              aria-expanded={showEarlier}
-              onClick={() => {
-                setShowEarlier(!showEarlier);
-              }}
-            >
-              {showEarlier ? "Hide" : "Show"} earlier ({earlier.length})
-            </button>
-            {showEarlier && (
-              <ol className={styles.earlier}>
-                {earlier.map((turn) => (
-                  <li key={turn.id}>
-                    <p className={styles.earlierPrompt}>{turn.prompt}</p>
-                    {(turn.reply ?? turn.error) && (
-                      <p className={styles.earlierReply}>{turn.reply ?? turn.error}</p>
-                    )}
-                  </li>
-                ))}
-              </ol>
-            )}
-          </>
-        )}
+        <div className={styles.content} ref={contentRef}>
+          {earlier.length > 0 && (
+            <>
+              <button
+                type="button"
+                className={styles.earlierToggle}
+                aria-expanded={showEarlier}
+                onClick={() => {
+                  setShowEarlier(!showEarlier);
+                }}
+              >
+                {showEarlier ? "Hide" : "Show"} earlier ({earlier.length})
+              </button>
+              {showEarlier && (
+                <ol className={styles.earlier}>
+                  {earlier.map((turn) => (
+                    <li key={turn.id}>
+                      <p className={styles.earlierPrompt}>{turn.prompt}</p>
+                      {(turn.reply ?? turn.error) && (
+                        <p className={styles.earlierReply}>{turn.reply ?? turn.error}</p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </>
+          )}
 
-        <Turn turn={latest} onPickAnswer={onPickAnswer} />
+          <Turn turn={latest} onPickAnswer={onPickAnswer} />
+        </div>
       </div>
     </section>
   );
