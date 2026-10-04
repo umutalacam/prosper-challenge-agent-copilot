@@ -44,4 +44,11 @@ describe("toFlowEdges", () => {
     expect(edges[1]!.selected).toBe(true);
     expect(edges[1]!.data).toEqual({ node: "a", index: 1 });
   });
+
+  it("marks highlighted actions, which skip the working dashes", () => {
+    const edges = toFlowEdges(agent, { kind: "none" }, true, new Map([["a/again", "added"]]));
+    expect(edges[0]).toMatchObject({ animated: true, data: { node: "a", index: 0 } });
+    expect(edges[0]!.data?.highlight).toBeUndefined();
+    expect(edges[1]).toMatchObject({ animated: false, data: { highlight: "added" } });
+  });
 });

@@ -3,7 +3,7 @@ import { clsx } from "clsx";
 import type { AgentNode } from "@/shared/types/agent";
 import { Badge } from "@/shared/ui";
 import { positionBelow } from "../../lib/autoLayout";
-import type { NodeHighlight } from "../../lib/nodeDiff";
+import type { Highlight } from "../../lib/agentDiff";
 import { useEditor } from "../../state/editorContext";
 import styles from "./NodeCard.module.scss";
 
@@ -11,7 +11,7 @@ export interface NodeCardData extends Record<string, unknown> {
   node: AgentNode;
   isStart: boolean;
   /** Just added / changed by the copilot: pops in or glows for a moment. */
-  highlight?: NodeHighlight;
+  highlight?: Highlight;
 }
 
 export type NodeCardNode = Node<NodeCardData, "agentNode">;
@@ -23,6 +23,7 @@ export type NodeCardNode = Node<NodeCardData, "agentNode">;
 export function NodeCard({ data, selected }: NodeProps<NodeCardNode>) {
   const { node, isStart, highlight } = data;
   const { state, dispatch } = useEditor();
+  const { locked } = state; // the copilot is editing: no new actions or nodes from here
   const task = node.task_messages[0]?.content.trim();
   const actionCount = node.edges.length;
 
@@ -41,7 +42,7 @@ export function NodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       <Handle
         type="target"
         position={Position.Top}
-        isConnectable={!isStart}
+        isConnectable={!isStart && !locked}
         className={clsx(styles.handle, isStart && styles.hiddenHandle)}
       />
       <div className={styles.header}>
@@ -57,13 +58,13 @@ export function NodeCard({ data, selected }: NodeProps<NodeCardNode>) {
       <Handle
         type="source"
         position={Position.Bottom}
-        isConnectable={!node.end}
+        isConnectable={!node.end && !locked}
         className={clsx(styles.handle, node.end && styles.hiddenHandle)}
       />
 
       {/* An end node finishes the call, so it doesn't offer a next step. The zone
           bridges the gap below the card, so moving onto the button keeps it shown. */}
-      {!node.end && (
+      {!node.end && !locked && (
         <div className={clsx(styles.addZone, "nodrag", "nopan")}>
           <button
             type="button"

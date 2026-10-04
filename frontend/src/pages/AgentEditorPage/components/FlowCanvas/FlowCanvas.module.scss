@@ -58,3 +58,58 @@ $controls-height: 32px;
     display: none;
   }
 }
+
+// An action the copilot just added (draws in along its arrow) or changed (glows),
+// for HIGHLIGHT_MS — the same rhythm as NodeCard's pop-in / glow.
+$edge-draw-length: 2000; // longer than any arrow, so the dash covers it whole
+
+.edgeAdded,
+.edgeChanged {
+  :global(.react-flow__edge-path) {
+    stroke: $color-brand;
+    stroke-width: 2.5;
+  }
+
+  :global(.react-flow__edge-text) {
+    fill: $color-accent;
+    font-weight: 600;
+  }
+}
+
+.edgeAdded :global(.react-flow__edge-path) {
+  stroke-dasharray: $edge-draw-length;
+  animation:
+    draw-in 700ms ease-out both,
+    edge-glow 1.8s ease-out;
+}
+
+.edgeChanged :global(.react-flow__edge-path) {
+  animation: edge-glow 1.8s ease-out;
+}
+
+.edgeAdded,
+.edgeChanged {
+  @media (prefers-reduced-motion: reduce) {
+    :global(.react-flow__edge-path) {
+      animation: none;
+      stroke-dasharray: none;
+    }
+  }
+}
+
+@keyframes draw-in {
+  from {
+    stroke-dashoffset: $edge-draw-length;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes edge-glow {
+  0%,
+  35% {
+    filter: drop-shadow(0 0 4px rgba($color-brand, 0.6));
+  }
+}

@@ -11,25 +11,33 @@ import {
 } from "@xyflow/react";
 import { clsx } from "clsx";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { FocusRequest } from "../../hooks/useEditHighlights";
+import { EMPTY_DIFF, type AgentDiff, type Highlight } from "../../lib/agentDiff";
 import { NODE_SIZE } from "../../lib/autoLayout";
-import type { NodeHighlight } from "../../lib/nodeDiff";
 import { NodeCard, type NodeCardNode } from "../NodeCard/NodeCard";
 import { useEditor } from "../../state/editorContext";
 import { toFlowEdges, toFlowNodes, type ActionEdge, type Dimensions } from "./flowElements";
+import { focusView, unionBox, type Box } from "./viewport";
 import styles from "./FlowCanvas.module.scss";
 
 const nodeTypes = { agentNode: NodeCard };
 const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1 };
 
+/** An action the copilot just touched: drawn in (added) or glowing (changed). */
+const EDGE_HIGHLIGHT_CLASS: Record<Highlight, string | undefined> = {
+  added: styles.edgeAdded,
+  changed: styles.edgeChanged,
+};
+
 export interface FlowCanvasProps {
   /** Increment to re-fit the viewport, e.g. after auto-layout. */
   fitViewRequest: number;
-  /** Increment to zoom out to the whole graph, but only if part of it is off-screen. */
+  /** Increment to show the whole graph once any glide in progress has finished. */
   revealRequest?: number;
-  /** Glide the view to a node, e.g. one the copilot just added. A new `seq` re-triggers. */
-  focusRequest?: { node: string; seq: number } | null;
-  /** Nodes to highlight for a moment (just added / changed by the copilot). */
-  highlights?: ReadonlyMap<string, NodeHighlight>;
+  /** Glide to these nodes (what the copilot just touched), keeping the zoom if they fit. */
+  focusRequest?: FocusRequest | null;
+  /** Nodes and actions to highlight for a moment (just added / changed by the copilot). */
+  highlights?: AgentDiff;
   /** The copilot is working: arrows flow and the canvas edge glows. */
   working?: boolean;
 }
@@ -45,36 +53,49 @@ export function FlowCanvas({
   fitViewRequest,
   revealRequest = 0,
   focusRequest = null,
-  highlights,
+  highlights = EMPTY_DIFF,
   working = false,
 }: FlowCanvasProps) {
   const { state, dispatch } = useEditor();
-  const { fitView, flowToScreenPosition, getNode, getNodes, getNodesBounds, getZoom, setCenter } =
-    useReactFlow();
+  const { locked } = state;
+  const { fitView, getNode, getZoom, setCenter } = useReactFlow<NodeCardNode, ActionEdge>();
   const canvasRef = useRef<HTMLDivElement>(null);
   const [measured, setMeasured] = useState<Dimensions>({});
 
   const nodes = useMemo(
-    () => toFlowNodes(state.agent, state.selection, measured, highlights),
-    [state.agent, state.selection, measured, highlights],
+    () => toFlowNodes(state.agent, state.selection, measured, highlights.nodes),
+    [state.agent, state.selection, measured, highlights.nodes],
   );
   const edges = useMemo(
-    () => toFlowEdges(state.agent, state.selection, working),
-    [state.agent, state.selection, working],
+    () =>
+      toFlowEdges(state.agent, state.selection, working, highlights.actions).map((edge) => {
+        const highlight = edge.data?.highlight;
+        return highlight ? { ...edge, className: EDGE_HIGHLIGHT_CLASS[highlight] } : edge;
+      }),
+    [state.agent, state.selection, working, highlights.actions],
   );
 
   useEffect(() => {
     if (!focusRequest) return;
-    // A frame later React Flow has the node (and, usually, its measured size).
+    // A frame later React Flow has the nodes (and, usually, their measured sizes).
     const frame = requestAnimationFrame(() => {
-      const node = getNode(focusRequest.node);
-      if (!node) return;
-      const width = node.measured?.width ?? NODE_SIZE.width;
-      const height = node.measured?.height ?? NODE_SIZE.height;
-      void setCenter(node.position.x + width / 2, node.position.y + height / 2, {
-        zoom: getZoom(),
-        duration: prefersReducedMotion() ? 0 : GLIDE_MS,
-      });
+      const view = canvasRef.current?.getBoundingClientRect();
+      const target = unionBox(
+        focusRequest.nodes.flatMap((id): Box[] => {
+          const node = getNode(id);
+          if (!node) return []; // e.g. deleted by a later edit
+          return [
+            {
+              ...node.position,
+              width: node.measured?.width ?? NODE_SIZE.width,
+              height: node.measured?.height ?? NODE_SIZE.height,
+            },
+          ];
+        }),
+      );
+      if (!view || !target) return;
+      const { x, y, zoom } = focusView(target, view, getZoom());
+      void setCenter(x, y, { zoom, duration: prefersReducedMotion() ? 0 : GLIDE_MS });
     });
     return () => {
       cancelAnimationFrame(frame);
@@ -83,28 +104,14 @@ export function FlowCanvas({
 
   useEffect(() => {
     if (!revealRequest) return;
-    // After any glide in progress, zoom out only if some node is outside the view.
+    // After any glide in progress, step back to the whole graph.
     const timer = window.setTimeout(() => {
-      const box = canvasRef.current?.getBoundingClientRect();
-      if (!box) return;
-      const bounds = getNodesBounds(getNodes());
-      const topLeft = flowToScreenPosition({ x: bounds.x, y: bounds.y });
-      const bottomRight = flowToScreenPosition({
-        x: bounds.x + bounds.width,
-        y: bounds.y + bounds.height,
-      });
-      const allVisible =
-        topLeft.x >= box.left &&
-        topLeft.y >= box.top &&
-        bottomRight.x <= box.right &&
-        bottomRight.y <= box.bottom;
-      if (!allVisible)
-        void fitView({ ...FIT_VIEW_OPTIONS, duration: prefersReducedMotion() ? 0 : 500 });
+      void fitView({ ...FIT_VIEW_OPTIONS, duration: prefersReducedMotion() ? 0 : 500 });
     }, GLIDE_MS + 100);
     return () => {
       clearTimeout(timer);
     };
-  }, [revealRequest, fitView, flowToScreenPosition, getNodes, getNodesBounds]);
+  }, [revealRequest, fitView]);
 
   useEffect(() => {
     if (!fitViewRequest) return;
@@ -157,6 +164,10 @@ export function FlowCanvas({
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onConnect={onConnect}
+        // Read-only while the copilot edits (the reducer refuses edits anyway).
+        nodesDraggable={!locked}
+        nodesConnectable={!locked}
+        elementsSelectable={!locked}
         isValidConnection={isValidConnection}
         onNodeClick={(_, node) => {
           dispatch({ type: "select", selection: { kind: "node", node: node.id } });

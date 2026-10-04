@@ -16,6 +16,11 @@ export interface EditorState {
   /** True when `agent` differs from what was last loaded or saved. */
   dirty: boolean;
   selection: Selection;
+  /**
+   * True while the copilot is editing: the editor is read-only and the reducer
+   * refuses every edit except the copilot's own (`copilotEdit`).
+   */
+  locked: boolean;
 }
 
 export type AgentPatch = Partial<Omit<Agent, "nodes">>;
@@ -29,6 +34,10 @@ export type EditorAction =
   | { type: "updateAgent"; patch: AgentPatch }
   /** The whole document, e.g. edited as raw JSON. */
   | { type: "replaceAgent"; agent: Agent }
+  /** Lock or unlock the editor around a copilot turn; locking clears the selection. */
+  | { type: "setLocked"; locked: boolean }
+  /** The copilot's edit: the whole document, applied even while locked. */
+  | { type: "copilotEdit"; agent: Agent }
   | { type: "addNode"; position: Position }
   | { type: "updateNode"; node: string; patch: NodePatch }
   | { type: "renameNode"; from: string; to: string }

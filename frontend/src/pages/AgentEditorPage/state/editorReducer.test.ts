@@ -188,4 +188,51 @@ describe("editorReducer", () => {
     expect(state.agent.nodes[1]!.position).toEqual({ x: 10, y: 20 });
     expect(state.agent.nodes[0]!.position).toBeUndefined();
   });
+
+  describe("while the copilot holds the editor (locked)", () => {
+    const locked = () =>
+      run([
+        { type: "select", selection: { kind: "node", node: "collect" } },
+        { type: "setLocked", locked: true },
+      ]);
+
+    it("clears the selection when locking", () => {
+      expect(locked().selection).toEqual({ kind: "none" });
+    });
+
+    it.each<EditorAction>([
+      { type: "updateAgent", patch: { name: "X" } },
+      { type: "replaceAgent", agent: { ...agent(), name: "X" } },
+      { type: "addNode", position: { x: 0, y: 0 } },
+      { type: "updateNode", node: "collect", patch: { end: true } },
+      { type: "renameNode", from: "collect", to: "other" },
+      { type: "deleteNode", node: "collect" },
+      { type: "moveNodes", positions: { collect: { x: 1, y: 1 } } },
+      { type: "addAction", source: "collect", target: "greeting" },
+      { type: "addNodeAfter", source: "collect", position: { x: 0, y: 0 } },
+      { type: "updateAction", node: "greeting", index: 0, patch: { description: "x" } },
+      { type: "deleteAction", node: "greeting", index: 0 },
+      { type: "select", selection: { kind: "agent" } },
+    ])("refuses $type", (action) => {
+      const state = locked();
+      expect(editorReducer(state, action)).toBe(state);
+    });
+
+    it("applies the copilot's edits", () => {
+      const state = editorReducer(locked(), {
+        type: "copilotEdit",
+        agent: { ...agent(), name: "X" },
+      });
+      expect(state.agent.name).toBe("X");
+      expect(state.dirty).toBe(true);
+      expect(state.locked).toBe(true);
+    });
+
+    it("unlocks", () => {
+      const state = editorReducer(locked(), { type: "setLocked", locked: false });
+      expect(editorReducer(state, { type: "updateAgent", patch: { name: "X" } }).agent.name).toBe(
+        "X",
+      );
+    });
+  });
 });

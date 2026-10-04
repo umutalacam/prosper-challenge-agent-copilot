@@ -8,7 +8,17 @@ import type { EditorAction, EditorState, Selection } from "./types";
 export const NO_SELECTION: Selection = { kind: "none" };
 
 export function createEditorState(agent: Agent, selection: Selection = NO_SELECTION): EditorState {
-  return { agent, dirty: false, selection };
+  return { agent, dirty: false, selection, locked: false };
+}
+
+/** What still works while the copilot holds the editor (`locked`). */
+const ALLOWED_WHILE_LOCKED = new Set<EditorAction["type"]>(["saved", "setLocked", "copilotEdit"]);
+
+/** Whether `action` may run in `state`: while locked, only the copilot edits, and nothing gets selected. */
+export function isAllowed(state: EditorState, action: EditorAction): boolean {
+  if (!state.locked) return true;
+  if (action.type === "select") return action.selection.kind === "none";
+  return ALLOWED_WHILE_LOCKED.has(action.type);
 }
 
 const mapNodes = (agent: Agent, fn: (node: AgentNode) => AgentNode): Agent => ({
@@ -42,12 +52,14 @@ const actionTo = (source: AgentNode, target: string): AgentAction => ({
 
 /** Apply an edit: marks dirty and optionally moves the selection. */
 const edit = (state: EditorState, agent: Agent, selection = state.selection): EditorState => ({
+  ...state,
   agent,
   selection,
   dirty: true,
 });
 
 export function editorReducer(state: EditorState, action: EditorAction): EditorState {
+  if (!isAllowed(state, action)) return state;
   const { agent } = state;
 
   switch (action.type) {
@@ -62,8 +74,17 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return edit(state, { ...agent, ...action.patch });
 
     case "replaceAgent":
+    case "copilotEdit":
       // Whatever was selected may no longer exist.
       return edit(state, action.agent, NO_SELECTION);
+
+    case "setLocked":
+      if (state.locked === action.locked) return state;
+      return {
+        ...state,
+        locked: action.locked,
+        selection: action.locked ? NO_SELECTION : state.selection,
+      };
 
     case "addNode": {
       const node = blankNode(agent, action.position);

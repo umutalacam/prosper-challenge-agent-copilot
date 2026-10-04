@@ -11,11 +11,12 @@ import { FlowCanvas } from "./components/FlowCanvas/FlowCanvas";
 import { Inspector } from "./components/Inspector/Inspector";
 import { JsonDialog } from "./components/JsonDialog/JsonDialog";
 import { useCopilot } from "./hooks/useCopilot";
+import { useEditHighlights } from "./hooks/useEditHighlights";
 import { useKeyPress } from "./hooks/useKeyPress";
 import { useModKeyShortcut } from "./hooks/useKeyboardShortcut";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { autoLayout, nextNodePosition, withPositions } from "./lib/autoLayout";
-import { diffNodes, type NodeHighlight } from "./lib/nodeDiff";
+import { diffAgents } from "./lib/agentDiff";
 import { EditorContext } from "./state/editorContext";
 import { createEditorState, editorReducer, NO_SELECTION } from "./state/editorReducer";
 import styles from "./AgentEditor.module.scss";
@@ -25,9 +26,6 @@ export type AgentEditorProps =
   | { agentId: null; initialAgent: Agent; initialVersion?: undefined }
   /** A stored agent, at the version it was loaded at. */
   | { agentId: string; initialAgent: Agent; initialVersion: number };
-
-/** How long a node the copilot touched stays highlighted (matches NodeCard's glow). */
-const HIGHLIGHT_MS = 1800;
 
 const CONFLICT_MESSAGE =
   "Someone else saved this agent since you opened it, so your save was blocked to avoid " +
@@ -52,16 +50,8 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   const [copilotDraft, setCopilotDraft] = useState("");
   const [copilotCardOpen, setCopilotCardOpen] = useState(true);
   const copilotInputRef = useRef<HTMLTextAreaElement>(null);
-  // Canvas effects for the copilot's edits: highlight what it touched, glide to what it added.
-  const [highlights, setHighlights] = useState<ReadonlyMap<string, NodeHighlight>>(new Map());
-  const [focusRequest, setFocusRequest] = useState<{ node: string; seq: number } | null>(null);
-  const highlightTimers = useRef(new Set<number>());
-  useEffect(() => {
-    const timers = highlightTimers.current;
-    return () => {
-      timers.forEach(clearTimeout);
-    };
-  }, []);
+  // Canvas effects for the copilot's edits: animate what each touched and glide to it.
+  const { highlights, focusRequest, show: showEdit } = useEditHighlights();
 
   const navigate = useNavigate();
   const confirm = useConfirm();
@@ -80,35 +70,28 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   const copilotBaseRef = useRef<Agent | null>(null);
   const copilot = useCopilot({
     getAgent: useCallback(() => agentRef.current, []),
-    onAgent: useCallback((edited: Agent) => {
-      const previous = copilotBaseRef.current ?? agentRef.current;
-      const next = withPositions(edited);
-      copilotBaseRef.current = next;
-      dispatch({ type: "replaceAgent", agent: next });
-
-      const touched = diffNodes(previous, next);
-      if (touched.size === 0) return;
-      setHighlights((current) => new Map([...current, ...touched]));
-      const timer = window.setTimeout(() => {
-        highlightTimers.current.delete(timer);
-        setHighlights((current) => {
-          const rest = new Map(current);
-          touched.forEach((_, name) => rest.delete(name));
-          return rest;
-        });
-      }, HIGHLIGHT_MS);
-      highlightTimers.current.add(timer);
-      const added = [...touched].filter(([, kind]) => kind === "added").map(([name]) => name);
-      const newest = added.at(-1);
-      if (newest) setFocusRequest((request) => ({ node: newest, seq: (request?.seq ?? 0) + 1 }));
-    }, []),
+    onAgent: useCallback(
+      (edited: Agent) => {
+        const previous = copilotBaseRef.current ?? agentRef.current;
+        const next = withPositions(edited);
+        copilotBaseRef.current = next;
+        dispatch({ type: "copilotEdit", agent: next });
+        showEdit(diffAgents(previous, next), next);
+      },
+      [showEdit],
+    ),
     onTurnEnd: useCallback((changed: boolean) => {
       copilotBaseRef.current = null;
-      // Step back to show the whole result, if part of it is off-screen.
+      // Step back to show the whole result.
       if (changed) setRevealRequest((n) => n + 1);
     }, []),
   });
   const lastTurn = copilot.turns.at(-1);
+
+  // Read-only while the copilot edits: its edits would overwrite hand edits mid-turn.
+  useEffect(() => {
+    dispatch({ type: "setLocked", locked: copilot.running });
+  }, [copilot.running]);
 
   const sendToCopilot = () => {
     setCopilotCardOpen(true);
@@ -176,8 +159,9 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   // cascades and guards apply (inbound actions go too; the start node stays).
   const { selection } = state;
   const deletable =
-    selection.kind === "action" ||
-    (selection.kind === "node" && selection.node !== state.agent.initial_node);
+    !state.locked &&
+    (selection.kind === "action" ||
+      (selection.kind === "node" && selection.node !== state.agent.initial_node));
   useKeyPress(["Delete", "Backspace"], deletable, () => {
     if (selection.kind === "node") dispatch({ type: "deleteNode", node: selection.node });
     if (selection.kind === "action") {
@@ -208,6 +192,7 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
             saving={saveAgent.isPending}
             persisted={agentId !== null}
             settingsOpen={settingsOpen}
+            locked={state.locked}
             onToggleSettings={() => {
               dispatch({
                 type: "select",

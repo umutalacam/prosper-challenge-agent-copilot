@@ -1,6 +1,8 @@
 import { BracesIcon, BrandLogo, Button, SettingsIcon } from "@/shared/ui";
 import styles from "./EditorToolbar.module.scss";
 
+const LOCKED_TITLE = "Read-only while the copilot is editing";
+
 export interface EditorToolbarProps {
   title: string;
   dirty: boolean;
@@ -8,6 +10,8 @@ export interface EditorToolbarProps {
   /** False for an agent that has never been saved. */
   persisted: boolean;
   settingsOpen: boolean;
+  /** The copilot is editing: everything that would change the agent is disabled. */
+  locked: boolean;
   onToggleSettings: () => void;
   onShowJson: () => void;
   onAddNode: () => void;
@@ -22,6 +26,7 @@ export function EditorToolbar({
   saving,
   persisted,
   settingsOpen,
+  locked,
   onToggleSettings,
   onShowJson,
   onAddNode,
@@ -42,6 +47,8 @@ export function EditorToolbar({
         aria-pressed={settingsOpen}
         className={styles.settings}
         onClick={onToggleSettings}
+        disabled={locked}
+        title={locked ? LOCKED_TITLE : undefined}
       >
         <SettingsIcon width={16} height={16} />
         Agent settings
@@ -52,6 +59,8 @@ export function EditorToolbar({
         aria-haspopup="dialog"
         className={styles.settings}
         onClick={onShowJson}
+        disabled={locked}
+        title={locked ? LOCKED_TITLE : undefined}
       >
         <BracesIcon width={16} height={16} />
         JSON
@@ -59,16 +68,32 @@ export function EditorToolbar({
 
       <span className={styles.divider} aria-hidden="true" />
 
-      <Button size="sm" onClick={onAddNode}>
+      <Button
+        size="sm"
+        onClick={onAddNode}
+        disabled={locked}
+        title={locked ? LOCKED_TITLE : undefined}
+      >
         + Node
       </Button>
-      <Button size="sm" onClick={onAutoLayout}>
+      <Button
+        size="sm"
+        onClick={onAutoLayout}
+        disabled={locked}
+        title={locked ? LOCKED_TITLE : undefined}
+      >
         Auto-layout
       </Button>
 
       <span className={styles.divider} aria-hidden="true" />
 
-      <Button size="sm" variant="danger" onClick={onDelete}>
+      <Button
+        size="sm"
+        variant="danger"
+        onClick={onDelete}
+        disabled={locked}
+        title={locked ? LOCKED_TITLE : undefined}
+      >
         {persisted ? "Delete agent" : "Discard"}
       </Button>
       <Button
