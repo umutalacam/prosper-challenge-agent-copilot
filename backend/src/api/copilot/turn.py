@@ -17,6 +17,7 @@ class Turn:
     edits: AgentEdits  # the agent being built; edits apply to edits.agent
     messages: list[dict[str, str]]  # the conversation, ending with the user's new prompt
     intent: str | None = None  # resolve_intent: "build" | "explain" | "clarify"
+    goal: str | None = None  # resolve_intent: what the user wants from this turn, one sentence
     questions: list[dict[str, Any]] = field(default_factory=list)  # resolve_intent, for clarify
     plan: list[str] = field(default_factory=list)  # planner: the edits to make, in order
     steps: list[str] = field(default_factory=list)  # executor: summaries of the edits applied

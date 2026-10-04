@@ -32,6 +32,8 @@ class ReviewerNode(DecisionNode):
 
     def context(self, turn: Turn) -> str | None:
         parts = []
+        if turn.goal:
+            parts.append(f"The user wants: {turn.goal}")
         if turn.plan:
             parts.append("The plan was:\n" + numbered(turn.plan))
         parts.append("Edits made this turn:\n" + bullets(turn.steps))

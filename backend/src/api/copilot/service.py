@@ -6,7 +6,7 @@
 #
 # Events, in the order they can happen:
 #   {"type": "activity", "text": "Planning…"}            what it's doing right now
-#   {"type": "note", "text": "..."}                      the plan, or the model's own words mid-build
+#   {"type": "note", "text": "..."}                      the model's own words mid-build
 #   {"type": "step", "text": "Added node 'x'", "ok": true}   an edit (ok=false: refused)
 #   {"type": "agent", "agent": {...}}                    the agent after that edit
 #   {"type": "reply", "text": "..."}                     the turn's closing message

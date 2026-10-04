@@ -1,9 +1,12 @@
 #
 # PlannerNode — turns the request (or the review's issues) into an ordered list of
-# edits for the executor. Shows the plan as a note.
+# edits for the executor. The plan goes to the log, not the UI: the edits it
+# leads to show as steps, and a full plan is too long for the card.
 #
 
 from typing import Any
+
+from loguru import logger
 
 from api.copilot.nodes.base import DecisionNode, bullets, numbered
 from api.copilot.turn import Event, Turn
@@ -22,9 +25,8 @@ class PlannerNode(DecisionNode):
 
     def record(self, turn: Turn, answer: dict[str, Any]) -> list[Event]:
         turn.plan = [step for step in answer.get("steps") or [] if step]
-        if not turn.plan:
-            return []
-        return [{"type": "note", "text": "Plan:\n" + numbered(turn.plan)}]
+        logger.info("Copilot plan:\n{}", numbered(turn.plan))
+        return []
 
     def next(self, turn: Turn) -> str | None:
         return "executor"

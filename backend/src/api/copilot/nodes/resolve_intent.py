@@ -8,8 +8,6 @@ from typing import Any
 from api.copilot.nodes.base import DecisionNode
 from api.copilot.turn import Event, Turn
 
-MAX_QUESTIONS = 3
-
 _NEXT = {"build": "planner", "explain": "explainer"}
 
 
@@ -19,12 +17,13 @@ class ResolveIntentNode(DecisionNode):
 
     def record(self, turn: Turn, answer: dict[str, Any]) -> list[Event]:
         turn.intent = answer.get("intent")
+        turn.goal = answer.get("goal") or None
         if turn.intent != "clarify":
             return []
         turn.questions = [
             # The editor treats missing options as "no suggestions"; strict mode sends [].
             {"question": q["question"], **({"options": q["options"]} if q.get("options") else {})}
-            for q in (answer.get("questions") or [])[:MAX_QUESTIONS]
+            for q in answer.get("questions") or []
             if q.get("question")
         ]
         return [{"type": "questions", "questions": turn.questions}] if turn.questions else []

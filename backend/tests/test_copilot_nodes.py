@@ -94,21 +94,28 @@ def test_a_refusal_stops_the_turn():
         run_node(node, turn())
 
 
-def test_resolve_intent_keeps_at_most_three_questions():
+def test_resolve_intent_records_the_goal():
+    node, _ = make(ResolveIntentNode, route("build", goal="A dental booking agent for patients"))
+    t = turn()
+    run_node(node, t)
+    assert t.intent == "build" and t.goal == "A dental booking agent for patients"
+
+
+def test_resolve_intent_passes_every_question_on():
     questions = [{"question": f"Q{i}?", "options": []} for i in range(5)]
     node, _ = make(ResolveIntentNode, route("clarify", *questions))
     t = turn()
     events = run_node(node, t)
-    assert [q["question"] for q in t.questions] == ["Q0?", "Q1?", "Q2?"]
+    assert [q["question"] for q in t.questions] == ["Q0?", "Q1?", "Q2?", "Q3?", "Q4?"]
     assert events[-1] == {"type": "questions", "questions": t.questions}
 
 
-def test_the_planner_records_the_plan_and_sees_the_review_issues():
+def test_the_planner_records_the_plan_without_showing_it_and_sees_the_review_issues():
     node, model = make(PlannerNode, plan("Add node bye"))
     t = turn(issues=["greeting has no way out"])
     events = run_node(node, t)
     assert t.plan == ["Add node bye"]
-    assert events[-1] == {"type": "note", "text": "Plan:\n1. Add node bye"}
+    assert events == [{"type": "activity", "text": "Planning…"}]
     last = model.requests[0]["messages"][-1]
     assert last["role"] == "developer" and "- greeting has no way out" in last["content"]
 
@@ -148,11 +155,12 @@ def test_the_reviewer_sends_an_invalid_agent_back_without_asking_the_model():
     assert node.next(t) == "planner"
 
 
-def test_the_reviewer_sees_the_plan_the_edits_and_the_gaps():
+def test_the_reviewer_sees_the_goal_the_plan_the_edits_and_the_gaps():
     node, model = make(ReviewerNode, review())
-    t = turn(plan=["Write the greeting"], steps=["Updated node 'greeting'"], issues=["old"])
+    t = turn(goal="A friendly greeting", plan=["Write the greeting"], steps=["Updated node 'greeting'"], issues=["old"])
     run_node(node, t)
     context = model.requests[0]["messages"][-1]["content"]
+    assert context.startswith("The user wants: A friendly greeting")
     assert "The plan was:\n1. Write the greeting" in context
     assert "Edits made this turn:\n- Updated node 'greeting'" in context
     assert "Automatic checks found:" in context and "'greeting' has no actions" in context

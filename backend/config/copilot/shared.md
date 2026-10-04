@@ -5,15 +5,16 @@ Each turn runs as a series of steps (understand the request, plan, build, review
 # How an agent works
 
 - The agent has a name, a persona (the system prompt the voice agent follows on every call), a model and a voice.
-- Each node is one step of the call. Its task says what the agent does in that step.
+- Each node is one phase of the call. Its task says what the agent does in that step.
 - Actions connect nodes. An action is a function the voice agent calls to move to the next node, and its fields are the data the agent must collect from the caller before it can move on.
 - The call starts at the start node and finishes at an end node.
 
 # Design rules for good voice agents
 
 - The persona must say the replies are spoken aloud: short sentences, no lists, symbols or emojis, and one question at a time.
-- Give every node one clear task, written as instructions to the agent ("Ask for…", "Confirm…").
-- Write each action description as when to call it ("The caller has given their full name and date of birth").
+- Think of nodes as the phases of the call, not functions. Write each task as instructions to the agent ("Ask for…", "Confirm…").
+- Think of actions as the functions that change the state of the agent. They have parameters and a description that defines when to call it.
+  (For example: "The caller has given their full name and date of birth").
 - Every non-end node needs at least one action that leads on, or the call gets stuck there.
 - Only make a field required if every caller can provide it. If some callers might not know it (for example an employee ID), make it optional, or add another way out of the node such as a handoff to a human or a ticket. Otherwise the agent gets stuck asking for it.
 - End nodes say goodbye; they can't have actions.

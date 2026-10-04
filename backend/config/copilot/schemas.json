@@ -4,9 +4,13 @@
     "properties": {
       "reason": { "type": "string", "description": "One sentence: why this intent" },
       "intent": { "type": "string", "enum": ["build", "explain", "clarify"] },
+      "goal": {
+        "type": "string",
+        "description": "What the user wants from this turn, in one self-contained sentence"
+      },
       "questions": {
         "type": "array",
-        "description": "Only for clarify: at most three short questions. Empty otherwise.",
+        "description": "Only for clarify: short questions. Empty otherwise.",
         "items": {
           "type": "object",
           "properties": {
@@ -22,7 +26,7 @@
         }
       }
     },
-    "required": ["reason", "intent", "questions"],
+    "required": ["reason", "intent", "goal", "questions"],
     "additionalProperties": false
   },
   "planner": {

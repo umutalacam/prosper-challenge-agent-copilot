@@ -24,8 +24,8 @@ def reply(content: str | None = None, *calls: SimpleNamespace) -> SimpleNamespac
     return SimpleNamespace(choices=[SimpleNamespace(message=message)])
 
 
-def route(intent: str, *questions: dict) -> SimpleNamespace:
-    return reply(json.dumps({"reason": "r", "intent": intent, "questions": list(questions)}))
+def route(intent: str, *questions: dict, goal: str = "Build it") -> SimpleNamespace:
+    return reply(json.dumps({"reason": "r", "intent": intent, "goal": goal, "questions": list(questions)}))
 
 
 def plan(*steps: str) -> SimpleNamespace:

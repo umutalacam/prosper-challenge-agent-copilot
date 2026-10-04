@@ -34,7 +34,7 @@ def test_a_build_runs_plan_execute_review_wrap_up():
     model = ScriptedModel(route("build"), *build_responses(review()), reply("Added a goodbye step."))
     events = run(model)
     assert [event["type"] for event in events] == [
-        "activity", "activity", "note",  # understand, plan, the plan
+        "activity", "activity",  # understand, plan
         "activity", "note", "step", "agent",  # build: add_node
         "activity", "step", "agent",  # build: add_action
         "activity",  # build: done
@@ -43,10 +43,9 @@ def test_a_build_runs_plan_execute_review_wrap_up():
     assert [e["text"] for e in events if e["type"] == "activity"] == [
         "Understanding the request…", "Planning…", "Building…", "Building…", "Building…", "Reviewing…", "Wrapping up…",
     ]
-    assert events[2] == {"type": "note", "text": "Plan:\n1. Add end node bye\n2. Connect greeting to bye"}
-    assert events[5] == {"type": "step", "text": "Added end node 'bye'", "ok": True}
+    assert events[4] == {"type": "step", "text": "Added end node 'bye'", "ok": True}
     assert events[-2] == {"type": "reply", "text": "Added a goodbye step."}
-    assert [n["name"] for n in events[9]["agent"]["nodes"]] == ["greeting", "bye"]
+    assert [n["name"] for n in events[8]["agent"]["nodes"]] == ["greeting", "bye"]
 
 
 def test_each_node_gets_its_own_prompt_and_the_current_agent():
