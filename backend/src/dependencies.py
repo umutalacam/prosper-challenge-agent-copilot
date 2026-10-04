@@ -19,7 +19,7 @@ from api.agents.repository import AgentRepository
 from api.agents.service import AgentService
 from api.bot.service import BotService
 from api.copilot.service import CopilotService
-from config import COPILOT_MODEL, COPILOT_PROMPT, SEED_SQL, agents_db_path
+from config import COPILOT_MODEL, COPILOT_PROMPT, COPILOT_TOOLS, SEED_SQL, agents_db_path
 
 
 @lru_cache
@@ -47,4 +47,4 @@ def get_bot_service(
 @lru_cache
 def get_copilot_service() -> CopilotService:
     # AsyncOpenAI reads OPENAI_API_KEY from the environment (backend/.env, loaded in main.py).
-    return CopilotService(AsyncOpenAI(), COPILOT_MODEL, COPILOT_PROMPT)
+    return CopilotService(AsyncOpenAI(), COPILOT_MODEL, COPILOT_PROMPT, COPILOT_TOOLS)

@@ -13,6 +13,7 @@ CONFIG_DIR = BACKEND_DIR / "config"
 SCHEMA_SQL = CONFIG_DIR / "schema.sql"  # DDL, applied on every start (idempotent)
 SEED_SQL = CONFIG_DIR / "seed.sql"  # sample data, loaded only into an empty database
 COPILOT_PROMPT = CONFIG_DIR / "copilot_prompt.md"  # the copilot's system prompt, read every turn
+COPILOT_TOOLS = CONFIG_DIR / "copilot_tools.json"  # the tools the copilot can call, read every turn
 
 # The OpenAI model behind the agent copilot.
 COPILOT_MODEL = os.getenv("COPILOT_MODEL", "gpt-4o")

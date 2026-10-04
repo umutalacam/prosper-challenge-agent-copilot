@@ -1,0 +1,309 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "set_agent_settings",
+      "description": "Change the agent's name, persona (its system prompt for every call), LLM model or ElevenLabs voice id.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "persona": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "voice_id": {
+            "type": "string"
+          }
+        },
+        "required": []
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "add_node",
+      "description": "Add a conversation step. Connect it with add_action afterwards.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "snake_case, unique"
+          },
+          "task": {
+            "type": "string",
+            "description": "What the agent does in this step, as instructions"
+          },
+          "end": {
+            "type": "boolean",
+            "description": "True if the call ends after this step"
+          },
+          "role_message": {
+            "type": "string",
+            "description": "Optional persona override for this step only"
+          }
+        },
+        "required": [
+          "name",
+          "task"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "update_node",
+      "description": "Change a node: rename it (actions follow), rewrite its task, set its persona override (empty string clears it) or make it an end node.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "new_name": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          },
+          "role_message": {
+            "type": "string"
+          },
+          "end": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "delete_node",
+      "description": "Delete a node and every action leading to it. The start node can't be deleted.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "add_action",
+      "description": "Connect two nodes: a function the voice agent calls to move from `source` to `target`, collecting `fields` from the caller first.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "function": {
+            "type": "string",
+            "description": "snake_case, unique within the source node"
+          },
+          "description": {
+            "type": "string",
+            "description": "When the voice agent should call it"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "snake_case field name"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ]
+                },
+                "description": {
+                  "type": "string",
+                  "description": "What the value is, for the voice agent"
+                },
+                "enum": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Allowed values, if fixed"
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Default true. False if some callers may not be able to give it."
+                }
+              },
+              "required": [
+                "name",
+                "type",
+                "description"
+              ]
+            }
+          }
+        },
+        "required": [
+          "source",
+          "target",
+          "function",
+          "description"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "update_action",
+      "description": "Change an action: rename it, its description, its target, or replace its fields.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "function": {
+            "type": "string"
+          },
+          "new_function": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "snake_case field name"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ]
+                },
+                "description": {
+                  "type": "string",
+                  "description": "What the value is, for the voice agent"
+                },
+                "enum": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Allowed values, if fixed"
+                },
+                "required": {
+                  "type": "boolean",
+                  "description": "Default true. False if some callers may not be able to give it."
+                }
+              },
+              "required": [
+                "name",
+                "type",
+                "description"
+              ]
+            }
+          }
+        },
+        "required": [
+          "source",
+          "function"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "delete_action",
+      "description": "Delete an action from a node.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "function": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "function"
+        ]
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "ask_user",
+      "description": "Ask the user clarifying questions (at most three). This ends your turn; their answer comes as the next message.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "questions": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string"
+                },
+                "options": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Optional short suggested answers"
+                }
+              },
+              "required": [
+                "question"
+              ]
+            }
+          }
+        },
+        "required": [
+          "questions"
+        ]
+      }
+    }
+  }
+]

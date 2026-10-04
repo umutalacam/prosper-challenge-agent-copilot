@@ -1,11 +1,13 @@
 import asyncio
+import inspect
 import json
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
-from api.copilot.service import CopilotService
+from api.copilot.service import EDIT_TOOLS, CopilotService, load_tools
+from config import COPILOT_TOOLS
 
 
 def call(tool: str, /, **args) -> SimpleNamespace:
@@ -44,8 +46,8 @@ def prompt(tmp_path: Path) -> Path:
     return path
 
 
-def run(model: ScriptedModel, prompt: Path, text: str = "Build it") -> list[dict]:
-    service = CopilotService(model, "test-model", prompt)
+def run(model: ScriptedModel, prompt: Path, text: str = "Build it", tools: Path = COPILOT_TOOLS) -> list[dict]:
+    service = CopilotService(model, "test-model", prompt, tools)
 
     async def collect():
         return [event async for event in service.run_turn(AGENT, [{"role": "user", "content": text}])]
@@ -114,6 +116,26 @@ def test_a_failing_model_call_is_reported(prompt: Path):
         {"type": "error", "message": "The copilot failed: rate limited"},
         {"type": "done"},
     ]
+
+
+def test_a_broken_tools_file_is_reported(prompt: Path, tmp_path: Path):
+    tools = tmp_path / "tools.json"
+    tools.write_text("[")
+    events = run(ScriptedModel(), prompt, tools=tools)
+    assert events[-2]["type"] == "error"
+    assert events[-1] == {"type": "done"}
+
+
+def test_every_tool_in_the_file_matches_its_edit():
+    """copilot_tools.json and AgentEdits agree: same tools, same arguments, same required ones."""
+    tools = {tool["function"]["name"]: tool["function"]["parameters"] for tool in load_tools(COPILOT_TOOLS)}
+    assert set(tools) == {*EDIT_TOOLS, "ask_user"}
+    for name, operation in EDIT_TOOLS.items():
+        params = list(inspect.signature(operation).parameters.values())[1:]  # without self
+        assert set(tools[name]["properties"]) == {param.name for param in params}, name
+        assert set(tools[name]["required"]) == {
+            param.name for param in params if param.default is inspect.Parameter.empty
+        }, name
 
 
 def test_a_half_built_flow_is_sent_back_to_be_finished(prompt: Path):
