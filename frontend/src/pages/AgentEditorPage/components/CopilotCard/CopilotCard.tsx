@@ -2,6 +2,7 @@ import { clsx } from "clsx";
 import { useState } from "react";
 import { CloseIcon, IconButton, SparklesIcon } from "@/shared/ui";
 import type { CopilotTurn } from "../../hooks/useCopilot";
+import { useStickToBottom } from "../../hooks/useStickToBottom";
 import styles from "./CopilotCard.module.scss";
 
 export interface CopilotCardProps {
@@ -18,6 +19,11 @@ export interface CopilotCardProps {
 export function CopilotCard({ turns, onPickAnswer, onClose }: CopilotCardProps) {
   const [showEarlier, setShowEarlier] = useState(false);
   const latest = turns.at(-1);
+  // Follow the copilot's output as it streams in; each new prompt starts following again.
+  const { ref: bodyRef, onScroll: onBodyScroll } = useStickToBottom<HTMLDivElement>(
+    latest,
+    latest?.id,
+  );
   if (!latest) return null;
   const earlier = turns.slice(0, -1);
 
@@ -31,7 +37,7 @@ export function CopilotCard({ turns, onPickAnswer, onClose }: CopilotCardProps) 
         </IconButton>
       </header>
 
-      <div className={styles.body}>
+      <div className={styles.body} ref={bodyRef} onScroll={onBodyScroll}>
         {earlier.length > 0 && (
           <>
             <button
