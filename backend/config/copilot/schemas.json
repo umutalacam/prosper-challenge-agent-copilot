@@ -1,0 +1,55 @@
+{
+  "resolve_intent": {
+    "type": "object",
+    "properties": {
+      "reason": { "type": "string", "description": "One sentence: why this intent" },
+      "intent": { "type": "string", "enum": ["build", "explain", "clarify"] },
+      "questions": {
+        "type": "array",
+        "description": "Only for clarify: at most three short questions. Empty otherwise.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "question": { "type": "string" },
+            "options": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Two to four short suggested answers, or empty"
+            }
+          },
+          "required": ["question", "options"],
+          "additionalProperties": false
+        }
+      }
+    },
+    "required": ["reason", "intent", "questions"],
+    "additionalProperties": false
+  },
+  "planner": {
+    "type": "object",
+    "properties": {
+      "reason": { "type": "string", "description": "One sentence: the approach" },
+      "steps": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "The edits to make, in order, one per step"
+      }
+    },
+    "required": ["reason", "steps"],
+    "additionalProperties": false
+  },
+  "reviewer": {
+    "type": "object",
+    "properties": {
+      "reason": { "type": "string", "description": "One sentence: why this verdict" },
+      "ok": { "type": "boolean" },
+      "issues": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "What's wrong and where, one per item. Empty when ok."
+      }
+    },
+    "required": ["reason", "ok", "issues"],
+    "additionalProperties": false
+  }
+}

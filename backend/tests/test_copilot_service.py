@@ -1,161 +1,130 @@
+"""A whole copilot turn through the node graph, with a scripted model."""
+
 import asyncio
-import inspect
-import json
+import shutil
 from pathlib import Path
-from types import SimpleNamespace
 
-import pytest
+from api.copilot.service import CopilotService
+from config import COPILOT_DIR
 
-from api.copilot.service import EDIT_TOOLS, CopilotService, load_tools
-from config import COPILOT_TOOLS
-
-
-def call(tool: str, /, **args) -> SimpleNamespace:
-    return SimpleNamespace(id=f"call_{tool}", function=SimpleNamespace(name=tool, arguments=json.dumps(args)))
+from tests.copilot_fakes import AGENT, ScriptedModel, call, plan, reply, review, route
 
 
-def reply(content: str | None = None, *calls: SimpleNamespace) -> SimpleNamespace:
-    message = SimpleNamespace(content=content, tool_calls=list(calls) or None)
-    return SimpleNamespace(choices=[SimpleNamespace(message=message)])
-
-
-class ScriptedModel:
-    """Stands in for AsyncOpenAI: returns the scripted responses in order, records requests."""
-
-    def __init__(self, *responses: SimpleNamespace) -> None:
-        self.responses = list(responses)
-        self.requests: list[dict] = []
-        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self.create))
-
-    async def create(self, **request):
-        self.requests.append(json.loads(json.dumps(request)))  # snapshot
-        return self.responses.pop(0)
-
-
-AGENT = {
-    "name": "New agent",
-    "initial_node": "greeting",
-    "nodes": [{"name": "greeting", "task_messages": [], "edges": []}],
-}
-
-
-@pytest.fixture
-def prompt(tmp_path: Path) -> Path:
-    path = tmp_path / "prompt.md"
-    path.write_text("You are the copilot.")
-    return path
-
-
-def run(model: ScriptedModel, prompt: Path, text: str = "Build it", tools: Path = COPILOT_TOOLS) -> list[dict]:
-    service = CopilotService(model, "test-model", prompt, tools)
+def run(model: ScriptedModel, text: str = "Build it", config: Path = COPILOT_DIR, agent: dict = AGENT) -> list[dict]:
+    service = CopilotService(model, "test-model", config)
 
     async def collect():
-        return [event async for event in service.run_turn(AGENT, [{"role": "user", "content": text}])]
+        return [event async for event in service.run_turn(agent, [{"role": "user", "content": text}])]
 
     return asyncio.run(collect())
 
 
-def test_edits_stream_as_steps_with_the_agent_after_each(prompt: Path):
-    model = ScriptedModel(
-        reply("Setting it up.", call("add_node", name="wrap_up", task="Say bye.", end=True)),
-        reply(None, call("add_action", source="greeting", target="wrap_up", function="finish", description="Done.")),
-        reply("Added a goodbye step."),
-    )
-    events = run(model, prompt)
-    kinds = [event["type"] for event in events]
-    assert kinds == [
-        "activity", "note", "step", "agent",
-        "activity", "step", "agent",
-        "activity", "reply", "done",
+def build_responses(*review_answers) -> list:
+    """A build that adds a goodbye node and connects it, then the given reviews."""
+    return [
+        plan("Add end node bye", "Connect greeting to bye"),
+        reply("Adding it.", call("add_node", name="bye", task="Say bye.", end=True)),
+        reply(None, call("add_action", source="greeting", target="bye", function="done", description="Done.")),
+        reply("All done."),
+        *review_answers,
     ]
-    assert events[2] == {"type": "step", "text": "Added end node 'wrap_up'", "ok": True}
-    assert [n["name"] for n in events[6]["agent"]["nodes"]] == ["greeting", "wrap_up"]
-    assert events[8] == {"type": "reply", "text": "Added a goodbye step."}
 
 
-def test_the_prompt_file_and_the_current_agent_are_sent(prompt: Path):
-    model = ScriptedModel(reply("Done."), reply("Still done."), reply("Really."))
-    run(model, prompt, "Hello")
-    messages = model.requests[0]["messages"]
-    assert messages[0] == {"role": "system", "content": "You are the copilot."}
-    assert messages[1]["role"] == "developer" and '"initial_node": "greeting"' in messages[1]["content"]
-    assert messages[2] == {"role": "user", "content": "Hello"}
-    assert {tool["function"]["name"] for tool in model.requests[0]["tools"]} >= {"add_node", "ask_user"}
+def test_a_build_runs_plan_execute_review_wrap_up():
+    model = ScriptedModel(route("build"), *build_responses(review()), reply("Added a goodbye step."))
+    events = run(model)
+    assert [event["type"] for event in events] == [
+        "activity", "activity", "note",  # understand, plan, the plan
+        "activity", "note", "step", "agent",  # build: add_node
+        "activity", "step", "agent",  # build: add_action
+        "activity",  # build: done
+        "activity", "activity", "reply", "done",  # review, wrap up
+    ]
+    assert [e["text"] for e in events if e["type"] == "activity"] == [
+        "Understanding the request…", "Planning…", "Building…", "Building…", "Building…", "Reviewing…", "Wrapping up…",
+    ]
+    assert events[2] == {"type": "note", "text": "Plan:\n1. Add end node bye\n2. Connect greeting to bye"}
+    assert events[5] == {"type": "step", "text": "Added end node 'bye'", "ok": True}
+    assert events[-2] == {"type": "reply", "text": "Added a goodbye step."}
+    assert [n["name"] for n in events[9]["agent"]["nodes"]] == ["greeting", "bye"]
 
 
-def test_a_refused_edit_goes_back_to_the_model(prompt: Path):
-    model = ScriptedModel(
-        reply(None, call("delete_node", name="greeting")),
-        reply("The start node has to stay."),
-    )
-    events = run(model, prompt)
-    assert events[1] == {
-        "type": "step",
-        "text": "delete_node refused: 'greeting' is the start node and can't be deleted.",
-        "ok": False,
-    }
-    tool_result = model.requests[1]["messages"][-1]
-    assert tool_result["role"] == "tool" and '"ok": false' in tool_result["content"]
+def test_each_node_gets_its_own_prompt_and_the_current_agent():
+    model = ScriptedModel(route("build"), *build_responses(review()), reply("Done."))
+    run(model, "Hello")
+    first = model.requests[0]["messages"]
+    assert first[0]["role"] == "system" and "# Your step: understand the request" in first[0]["content"]
+    assert first[1]["role"] == "developer" and '"initial_node": "greeting"' in first[1]["content"]
+    assert first[2] == {"role": "user", "content": "Hello"}
+    systems = [request["messages"][0]["content"] for request in model.requests]
+    assert "# Your step: plan the change" in systems[1]
+    assert "# Your step: build" in systems[2]
+    assert "# Your step: review" in systems[5]
+    assert "# Your step: reply to the user" in systems[6]
 
 
-def test_ask_user_ends_the_turn_with_the_questions(prompt: Path):
-    questions = [{"question": "Who calls this agent?", "options": ["Patients", "Staff"]}]
-    model = ScriptedModel(reply("A couple of questions first.", call("ask_user", questions=questions)))
-    events = run(model, prompt)
-    assert events[-2:] == [{"type": "questions", "questions": questions}, {"type": "done"}]
+def test_clarify_asks_and_ends_the_turn():
+    question = {"question": "Who calls this agent?", "options": ["Patients", "Staff"]}
+    model = ScriptedModel(route("clarify", question, {"question": "What tone?", "options": []}))
+    events = run(model)
+    assert events[-2:] == [
+        {"type": "questions", "questions": [question, {"question": "What tone?"}]},
+        {"type": "done"},
+    ]
     assert len(model.requests) == 1
 
 
-def test_a_failing_model_call_is_reported(prompt: Path):
+def test_explain_answers_without_editing():
+    model = ScriptedModel(route("explain"), reply("greeting is where every call starts."))
+    events = run(model, "What does greeting do?")
+    assert [e["type"] for e in events] == ["activity", "activity", "reply", "done"]
+    assert events[-2] == {"type": "reply", "text": "greeting is where every call starts."}
+    assert len(model.requests) == 2  # wrap_up sends the explainer's answer, no extra call
+
+
+def test_review_issues_go_back_to_the_planner():
+    model = ScriptedModel(
+        route("build"),
+        plan("Write the greeting"),
+        reply("Nothing to do."),
+        review("greeting has no way out"),
+        *build_responses(review()),
+        reply("Fixed the dead end."),
+    )
+    events = run(model)
+    replan = model.requests[4]["messages"][-1]
+    assert replan["role"] == "developer" and "- greeting has no way out" in replan["content"]
+    assert events[-2] == {"type": "reply", "text": "Fixed the dead end."}
+
+
+def test_the_review_loop_gives_up_after_three_reviews():
+    stuck = [plan("Try"), reply("Tried."), review("still broken")]
+    model = ScriptedModel(route("build"), *stuck, *stuck, *stuck, reply("I couldn't fix it."))
+    events = run(model)
+    wrap_up = model.requests[-1]["messages"][-1]["content"]
+    assert "Problems the review couldn't fix:\n- still broken" in wrap_up
+    assert events[-2] == {"type": "reply", "text": "I couldn't fix it."}
+
+
+def test_a_failing_model_call_is_reported():
     class Broken(ScriptedModel):
         async def create(self, **request):
             raise RuntimeError("rate limited")
 
-    events = run(Broken(), prompt)
-    assert events[-2:] == [
-        {"type": "error", "message": "The copilot failed: rate limited"},
-        {"type": "done"},
-    ]
+    events = run(Broken())
+    assert events[-2:] == [{"type": "error", "message": "The copilot failed: rate limited"}, {"type": "done"}]
 
 
-def test_a_broken_tools_file_is_reported(prompt: Path, tmp_path: Path):
-    tools = tmp_path / "tools.json"
-    tools.write_text("[")
-    events = run(ScriptedModel(), prompt, tools=tools)
-    assert events[-2]["type"] == "error"
+def test_an_unreadable_decision_is_reported():
+    events = run(ScriptedModel(reply("build, I think")))
+    assert events[-2]["type"] == "error" and "wasn't valid JSON" in events[-2]["message"]
     assert events[-1] == {"type": "done"}
 
 
-def test_every_tool_in_the_file_matches_its_edit():
-    """copilot_tools.json and AgentEdits agree: same tools, same arguments, same required ones."""
-    tools = {tool["function"]["name"]: tool["function"]["parameters"] for tool in load_tools(COPILOT_TOOLS)}
-    assert set(tools) == {*EDIT_TOOLS, "ask_user"}
-    for name, operation in EDIT_TOOLS.items():
-        params = list(inspect.signature(operation).parameters.values())[1:]  # without self
-        assert set(tools[name]["properties"]) == {param.name for param in params}, name
-        assert set(tools[name]["required"]) == {
-            param.name for param in params if param.default is inspect.Parameter.empty
-        }, name
-
-
-def test_a_half_built_flow_is_sent_back_to_be_finished(prompt: Path):
-    model = ScriptedModel(
-        reply("I'll add the rest next."),  # greeting has no way out, no end node
-        reply(None, call("add_node", name="bye", task="Say bye.", end=True)),
-        reply(None, call("add_action", source="greeting", target="bye", function="done", description="Done.")),
-        reply("Finished: greeting now leads to a goodbye."),
-    )
-    events = run(model, prompt)
-    nudge = model.requests[1]["messages"][-1]
-    assert nudge["role"] == "developer"
-    assert "'greeting' has no actions" in nudge["content"] and "no end node" in nudge["content"]
-    assert {"type": "activity", "text": "Finishing the flow…"} in events
-    assert events[-2] == {"type": "reply", "text": "Finished: greeting now leads to a goodbye."}
-    assert not any(e.get("text") == "I'll add the rest next." for e in events)
-
-
-def test_the_nudge_gives_up_after_two_tries(prompt: Path):
-    model = ScriptedModel(reply("Only the persona, as asked."), reply("Still only that."), reply("Yes, only that."))
-    events = run(model, prompt)
-    assert len(model.requests) == 3
-    assert events[-2] == {"type": "reply", "text": "Yes, only that."}
+def test_a_broken_config_file_is_reported(tmp_path: Path):
+    config = tmp_path / "copilot"
+    shutil.copytree(COPILOT_DIR, config)
+    (config / "schemas.json").write_text("{")
+    events = run(ScriptedModel(), config=config)
+    assert events[-2]["type"] == "error"
+    assert events[-1] == {"type": "done"}

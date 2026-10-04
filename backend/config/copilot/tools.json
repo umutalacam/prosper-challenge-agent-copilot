@@ -268,42 +268,5 @@
         ]
       }
     }
-  },
-  {
-    "type": "function",
-    "function": {
-      "name": "ask_user",
-      "description": "Ask the user clarifying questions (at most three). This ends your turn; their answer comes as the next message.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "questions": {
-            "type": "array",
-            "maxItems": 3,
-            "items": {
-              "type": "object",
-              "properties": {
-                "question": {
-                  "type": "string"
-                },
-                "options": {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  },
-                  "description": "Optional short suggested answers"
-                }
-              },
-              "required": [
-                "question"
-              ]
-            }
-          }
-        },
-        "required": [
-          "questions"
-        ]
-      }
-    }
   }
 ]
