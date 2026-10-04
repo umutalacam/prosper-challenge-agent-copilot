@@ -17,11 +17,15 @@ class PlannerNode(DecisionNode):
     activity = "Planning…"
 
     def context(self, turn: Turn) -> str | None:
-        if not turn.issues:
-            return None
-        return "The review found these problems with the agent. Plan only the edits that fix them:\n" + bullets(
-            turn.issues
-        )
+        parts = []
+        if turn.goal:
+            parts.append(f"The user wants: {turn.goal}")
+        if turn.issues:
+            parts.append(
+                "The review found these problems with the agent. Plan only the edits that fix them:\n"
+                + bullets(turn.issues)
+            )
+        return "\n\n".join(parts) or None
 
     def record(self, turn: Turn, answer: dict[str, Any]) -> list[Event]:
         turn.plan = [step for step in answer.get("steps") or [] if step]

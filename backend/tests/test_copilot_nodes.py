@@ -97,8 +97,12 @@ def test_a_refusal_stops_the_turn():
 def test_resolve_intent_records_the_goal():
     node, _ = make(ResolveIntentNode, route("build", goal="A dental booking agent for patients"))
     t = turn()
-    run_node(node, t)
+    events = run_node(node, t)
     assert t.intent == "build" and t.goal == "A dental booking agent for patients"
+    assert events == [
+        {"type": "activity", "text": "Understanding the request…"},
+        {"type": "note", "text": "Goal: A dental booking agent for patients"},
+    ]
 
 
 def test_resolve_intent_passes_every_question_on():
@@ -110,14 +114,15 @@ def test_resolve_intent_passes_every_question_on():
     assert events[-1] == {"type": "questions", "questions": t.questions}
 
 
-def test_the_planner_records_the_plan_without_showing_it_and_sees_the_review_issues():
+def test_the_planner_records_the_plan_without_showing_it_and_sees_the_goal_and_issues():
     node, model = make(PlannerNode, plan("Add node bye"))
-    t = turn(issues=["greeting has no way out"])
+    t = turn(goal="A dental booking agent", issues=["greeting has no way out"])
     events = run_node(node, t)
     assert t.plan == ["Add node bye"]
     assert events == [{"type": "activity", "text": "Planning…"}]
     last = model.requests[0]["messages"][-1]
-    assert last["role"] == "developer" and "- greeting has no way out" in last["content"]
+    assert last["role"] == "developer" and last["content"].startswith("The user wants: A dental booking agent")
+    assert "- greeting has no way out" in last["content"]
 
 
 def test_the_executor_gets_the_plan_and_only_the_edit_tools():

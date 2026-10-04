@@ -1,6 +1,7 @@
 #
 # ResolveIntentNode — the first node: what does the newest message need?
-# build → planner, explain → explainer, clarify → ask the user and end the turn.
+# build → planner (showing the goal it understood), explain → explainer,
+# clarify → ask the user and end the turn.
 #
 
 from typing import Any
@@ -18,6 +19,9 @@ class ResolveIntentNode(DecisionNode):
     def record(self, turn: Turn, answer: dict[str, Any]) -> list[Event]:
         turn.intent = answer.get("intent")
         turn.goal = answer.get("goal") or None
+        if turn.intent == "build":
+            # One sentence, so it fits the card: what the copilot understood it's building.
+            return [{"type": "note", "text": f"Goal: {turn.goal}"}] if turn.goal else []
         if turn.intent != "clarify":
             return []
         turn.questions = [
