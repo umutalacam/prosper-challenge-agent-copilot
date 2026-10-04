@@ -20,6 +20,9 @@ export {
   MenuIcon,
   PhoneIcon,
   RobotIcon,
+  SendIcon,
+  SparklesIcon,
+  StopIcon,
   SettingsIcon,
 } from "./icons/icons";
 export { Input, type InputProps } from "./Input/Input";

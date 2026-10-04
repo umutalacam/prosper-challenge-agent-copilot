@@ -9,11 +9,13 @@ import type { Agent } from "@/shared/types/agent";
 /** Server metadata a stored agent carries; not part of the document. */
 const METADATA_KEYS = ["id", "version", "updated_at"];
 
+/** The agent document as the backend stores it: no id, version or timestamp. */
+export function agentDocument(agent: Agent): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(agent).filter(([key]) => !METADATA_KEYS.includes(key)));
+}
+
 export function formatAgentJson(agent: Agent): string {
-  const document = Object.fromEntries(
-    Object.entries(agent).filter(([key]) => !METADATA_KEYS.includes(key)),
-  );
-  return JSON.stringify(document, null, 2);
+  return JSON.stringify(agentDocument(agent), null, 2);
 }
 
 export type ParseResult = { ok: true; agent: Agent } | { ok: false; error: string };

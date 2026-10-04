@@ -2,6 +2,8 @@
 @use "@/shared/styles/mixins" as m;
 
 $inspector-top: $float-gap + $toolbar-height + $space-2;
+// Stops above the copilot prompt bar.
+$inspector-bottom: $float-gap + $copilot-bar-min-height + $space-2;
 
 .card {
   @include m.floating-panel;
@@ -11,7 +13,7 @@ $inspector-top: $float-gap + $toolbar-height + $space-2;
   right: $float-gap;
   z-index: $z-panel;
   width: $inspector-width;
-  max-height: calc(100% - #{$inspector-top + $float-gap});
+  max-height: calc(100% - #{$inspector-top + $inspector-bottom});
   overflow-y: auto;
   overscroll-behavior: contain;
   animation: slide-in 160ms ease-out;

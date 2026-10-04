@@ -35,6 +35,34 @@ export function BracesIcon(props: IconProps) {
   );
 }
 
+/** Sparkles: the AI copilot. */
+export function SparklesIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6z" />
+      <path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z" />
+    </Icon>
+  );
+}
+
+/** Arrow up: send a prompt. */
+export function SendIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 19V5M6 11l6-6 6 6" />
+    </Icon>
+  );
+}
+
+/** Square: stop what's running. */
+export function StopIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" stroke="none" />
+    </Icon>
+  );
+}
+
 /** Hamburger: opens the app menu. */
 export function MenuIcon(props: IconProps) {
   return (

@@ -1,6 +1,7 @@
 export { agentsApi, normalizeAgent, type WireAgentDocument } from "./agents";
 export { botApi } from "./bot";
-export { ApiError, errorMessage } from "./http";
+export { parseNdjson, streamCopilotTurn, type CopilotTurnInput } from "./copilot";
+export { ApiError, apiFetch, errorMessage } from "./http";
 export {
   agentKeys,
   botKeys,

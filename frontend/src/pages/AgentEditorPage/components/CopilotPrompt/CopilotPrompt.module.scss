@@ -1,0 +1,121 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+// Bottom-center island, kept clear of React Flow's bottom-left minimap.
+.bar {
+  @include m.floating-panel;
+  position: absolute;
+  bottom: $float-gap;
+  left: 50%;
+  z-index: $z-panel;
+  display: flex;
+  align-items: flex-end;
+  gap: $space-2;
+  width: min(#{$copilot-bar-width}, calc(100% - #{2 * ($canvas-chrome-width + $float-gap)}));
+  min-height: $copilot-bar-min-height;
+  padding: $space-2 $space-2 $space-2 $space-4;
+  transform: translateX(-50%);
+
+  &:focus-within {
+    border-color: $color-brand;
+    box-shadow:
+      $shadow-float,
+      0 0 0 3px $color-brand-soft;
+  }
+
+  @media (width < $breakpoint-sm) {
+    width: calc(100% - #{2 * $float-gap});
+  }
+}
+
+// The copilot is working: the border breathes in the brand color, the mark twinkles.
+.working {
+  border-color: $color-brand;
+  animation: pulse 1.6s ease-in-out infinite alternate;
+
+  .icon {
+    animation: twinkle 1.2s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+
+    .icon {
+      animation: none;
+    }
+  }
+}
+
+@keyframes pulse {
+  from {
+    box-shadow:
+      $shadow-float,
+      0 0 0 0 $color-brand-soft;
+  }
+
+  to {
+    box-shadow:
+      $shadow-float,
+      0 0 0 5px $color-brand-soft,
+      0 0 22px rgba($color-brand, 0.3);
+  }
+}
+
+@keyframes twinkle {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85) rotate(20deg);
+  }
+}
+
+.icon {
+  flex: none;
+  align-self: center;
+  color: $color-accent;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 0;
+  border: none;
+  background: transparent;
+  color: $color-text;
+  font: inherit;
+  font-size: $font-size-md;
+  line-height: 1.45;
+  resize: none;
+  outline: none;
+
+  &::placeholder {
+    color: $color-text-muted;
+  }
+}
+
+.action {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: none;
+  border-radius: $radius-md;
+  background: $color-accent;
+  color: $color-text-on-accent;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: $color-accent-hover;
+  }
+
+  &:disabled {
+    background: $color-surface-sunken;
+    color: $color-text-muted;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}

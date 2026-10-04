@@ -1,0 +1,226 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+$card-top: $float-gap + $toolbar-height + $space-2;
+
+// Top-left, under the menu button; stops above React Flow's minimap and controls.
+.card {
+  @include m.floating-panel;
+  position: absolute;
+  top: $card-top;
+  left: $float-gap;
+  z-index: $z-panel;
+  display: flex;
+  flex-direction: column;
+  width: $copilot-card-width;
+  max-height: calc(100% - #{$card-top + $canvas-chrome-height});
+  animation: appear 160ms ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+
+  // Phones: full width, above the prompt bar.
+  @media (width < $breakpoint-sm) {
+    right: $float-gap;
+    width: auto;
+    max-height: calc(100% - #{$card-top + $copilot-bar-min-height + 2 * $float-gap});
+  }
+}
+
+.header {
+  @include m.cluster($space-2);
+  padding: $space-2 $space-2 $space-2 $space-3;
+  border-bottom: 1px solid $color-border;
+}
+
+.mark {
+  color: $color-accent;
+}
+
+.title {
+  flex: 1;
+  font-size: $font-size-md;
+  font-weight: 600;
+}
+
+.body {
+  @include m.stack($space-3);
+  min-height: 0;
+  padding: $space-3;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.earlierToggle {
+  align-self: flex-start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: $color-text-muted;
+  font: inherit;
+  font-size: $font-size-sm;
+  cursor: pointer;
+
+  &:hover {
+    color: $color-text;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.earlier {
+  @include m.stack($space-2);
+  margin: 0;
+  padding: 0 0 $space-3;
+  border-bottom: 1px solid $color-border;
+  list-style: none;
+  font-size: $font-size-sm;
+}
+
+.earlierPrompt {
+  font-weight: 600;
+}
+
+.earlierReply {
+  color: $color-text-muted;
+}
+
+.turn {
+  @include m.stack($space-3);
+
+  > div {
+    @include m.stack($space-3);
+  }
+}
+
+// The user's prompt, quoted.
+.prompt {
+  padding: $space-2 $space-3;
+  border-radius: $radius-md;
+  background: $color-brand-soft;
+  white-space: pre-wrap;
+}
+
+.steps {
+  @include m.stack($space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: $font-size-sm;
+}
+
+.step {
+  display: flex;
+  gap: $space-2;
+}
+
+.stepMark {
+  flex: none;
+  color: $color-success;
+  font-weight: 600;
+}
+
+.refused {
+  color: $color-text-muted;
+
+  .stepMark {
+    color: $color-danger;
+  }
+}
+
+.note {
+  color: $color-text-muted;
+  font-style: italic;
+}
+
+.activity {
+  @include m.cluster($space-2);
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.spinner {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border: 2px solid $color-border-strong;
+  border-top-color: $color-accent;
+  border-radius: 50%;
+  animation: spin 800ms linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-duration: 2s;
+  }
+}
+
+.reply {
+  white-space: pre-wrap;
+}
+
+.questions {
+  @include m.stack($space-3);
+  margin: 0;
+  padding: 0 0 0 $space-5;
+}
+
+.question {
+  font-weight: 600;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-1;
+  margin-top: $space-1;
+}
+
+.option {
+  padding: 2px $space-2;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-pill;
+  background: $color-surface;
+  color: $color-text;
+  font: inherit;
+  font-size: $font-size-sm;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-brand;
+    background: $color-brand-soft;
+    color: $color-accent;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.muted {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.error {
+  color: $color-danger;
+  font-size: $font-size-sm;
+}
+
+.visuallyHidden {
+  @include m.visually-hidden;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}

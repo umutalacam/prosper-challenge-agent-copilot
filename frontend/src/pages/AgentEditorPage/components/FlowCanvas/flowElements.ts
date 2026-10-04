@@ -3,6 +3,7 @@
 
 import { MarkerType, type Edge } from "@xyflow/react";
 import type { Agent } from "@/shared/types/agent";
+import type { NodeHighlight } from "../../lib/nodeDiff";
 import type { NodeCardNode } from "../NodeCard/NodeCard";
 import type { Selection } from "../../state/types";
 
@@ -17,10 +18,14 @@ export type Dimensions = Record<string, { width: number; height: number }>;
 
 export const actionEdgeId = (node: string, index: number) => `${node}::${index}`;
 
+const NO_HIGHLIGHTS: ReadonlyMap<string, NodeHighlight> = new Map();
+
 export function toFlowNodes(
   agent: Agent,
   selection: Selection,
   measured: Dimensions,
+  /** Nodes the copilot just added or changed, shown with a short highlight. */
+  highlights: ReadonlyMap<string, NodeHighlight> = NO_HIGHLIGHTS,
 ): NodeCardNode[] {
   return agent.nodes.map((node) => {
     const dimensions = measured[node.name];
@@ -31,12 +36,17 @@ export function toFlowNodes(
       // Controlled nodes must carry their measured size or React Flow keeps them hidden.
       ...(dimensions && { measured: dimensions }),
       selected: selection.kind === "node" && selection.node === node.name,
-      data: { node, isStart: node.name === agent.initial_node },
+      data: {
+        node,
+        isStart: node.name === agent.initial_node,
+        highlight: highlights.get(node.name),
+      },
     };
   });
 }
 
-export function toFlowEdges(agent: Agent, selection: Selection): ActionEdge[] {
+/** `working`: the copilot is editing, so every arrow shows flowing dashes. */
+export function toFlowEdges(agent: Agent, selection: Selection, working = false): ActionEdge[] {
   return agent.nodes.flatMap((node) =>
     node.edges.map((action, index) => ({
       id: actionEdgeId(node.name, index),
@@ -46,6 +56,7 @@ export function toFlowEdges(agent: Agent, selection: Selection): ActionEdge[] {
       selected:
         selection.kind === "action" && selection.node === node.name && selection.index === index,
       markerEnd: { type: MarkerType.ArrowClosed },
+      animated: working,
       data: { node: node.name, index },
     })),
   );

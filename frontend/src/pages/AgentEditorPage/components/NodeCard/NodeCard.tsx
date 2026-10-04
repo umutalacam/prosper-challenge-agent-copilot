@@ -3,12 +3,15 @@ import { clsx } from "clsx";
 import type { AgentNode } from "@/shared/types/agent";
 import { Badge } from "@/shared/ui";
 import { positionBelow } from "../../lib/autoLayout";
+import type { NodeHighlight } from "../../lib/nodeDiff";
 import { useEditor } from "../../state/editorContext";
 import styles from "./NodeCard.module.scss";
 
 export interface NodeCardData extends Record<string, unknown> {
   node: AgentNode;
   isStart: boolean;
+  /** Just added / changed by the copilot: pops in or glows for a moment. */
+  highlight?: NodeHighlight;
 }
 
 export type NodeCardNode = Node<NodeCardData, "agentNode">;
@@ -18,13 +21,20 @@ export type NodeCardNode = Node<NodeCardData, "agentNode">;
  * action, or use the "+" below it (draw.io-style) to add a connected node.
  */
 export function NodeCard({ data, selected }: NodeProps<NodeCardNode>) {
-  const { node, isStart } = data;
+  const { node, isStart, highlight } = data;
   const { state, dispatch } = useEditor();
   const task = node.task_messages[0]?.content.trim();
   const actionCount = node.edges.length;
 
   return (
-    <div className={clsx(styles.card, selected && styles.selected)}>
+    <div
+      className={clsx(
+        styles.card,
+        selected && styles.selected,
+        highlight === "added" && styles.added,
+        highlight === "changed" && styles.changed,
+      )}
+    >
       {/* Nothing leads into the start node. Its handle stays (hidden, not
           connectable) only so an invalid action, e.g. from the JSON view, still draws
           (and can be found and removed); saving it fails. */}

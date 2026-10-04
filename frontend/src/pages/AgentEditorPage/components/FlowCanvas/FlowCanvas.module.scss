@@ -5,10 +5,36 @@
 $controls-height: 32px;
 
 .canvas {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
   background: $color-bg;
+}
+
+// The copilot is working: a soft brand glow breathes around the canvas edge.
+.working::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: $z-canvas-chrome;
+  box-shadow: inset 0 0 48px 4px rgba($color-brand, 0.22);
+  pointer-events: none;
+  animation: breathe 1.6s ease-in-out infinite alternate;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes breathe {
+  from {
+    opacity: 0.35;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .controls {
@@ -23,4 +49,12 @@ $controls-height: 32px;
   margin: $float-gap;
   margin-bottom: $float-gap + $controls-height + $space-2;
   overflow: hidden;
+}
+
+// Phones: the copilot prompt bar spans the bottom; pinch-zoom replaces these.
+.controls,
+.minimap {
+  @media (width < $breakpoint-sm) {
+    display: none;
+  }
 }

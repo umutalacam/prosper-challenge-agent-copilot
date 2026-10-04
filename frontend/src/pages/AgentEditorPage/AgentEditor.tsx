@@ -1,17 +1,21 @@
 import { ReactFlowProvider } from "@xyflow/react";
-import { useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { ApiError, errorMessage, useDeleteAgent, useSaveAgent } from "@/shared/api";
 import type { Agent } from "@/shared/types/agent";
 import { Banner, useConfirm } from "@/shared/ui";
+import { CopilotCard } from "./components/CopilotCard/CopilotCard";
+import { CopilotPrompt } from "./components/CopilotPrompt/CopilotPrompt";
 import { EditorToolbar } from "./components/EditorToolbar/EditorToolbar";
 import { FlowCanvas } from "./components/FlowCanvas/FlowCanvas";
 import { Inspector } from "./components/Inspector/Inspector";
 import { JsonDialog } from "./components/JsonDialog/JsonDialog";
+import { useCopilot } from "./hooks/useCopilot";
 import { useKeyPress } from "./hooks/useKeyPress";
 import { useModKeyShortcut } from "./hooks/useKeyboardShortcut";
 import { useUnsavedChangesGuard } from "./hooks/useUnsavedChangesGuard";
 import { autoLayout, nextNodePosition, withPositions } from "./lib/autoLayout";
+import { diffNodes, type NodeHighlight } from "./lib/nodeDiff";
 import { EditorContext } from "./state/editorContext";
 import { createEditorState, editorReducer, NO_SELECTION } from "./state/editorReducer";
 import styles from "./AgentEditor.module.scss";
@@ -21,6 +25,9 @@ export type AgentEditorProps =
   | { agentId: null; initialAgent: Agent; initialVersion?: undefined }
   /** A stored agent, at the version it was loaded at. */
   | { agentId: string; initialAgent: Agent; initialVersion: number };
+
+/** How long a node the copilot touched stays highlighted (matches NodeCard's glow). */
+const HIGHLIGHT_MS = 1800;
 
 const CONFLICT_MESSAGE =
   "Someone else saved this agent since you opened it, so your save was blocked to avoid " +
@@ -39,14 +46,75 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   // The stored version this working copy is based on; sent as If-Match on save.
   const [version, setVersion] = useState(initialVersion);
   const [fitViewRequest, setFitViewRequest] = useState(0);
+  const [revealRequest, setRevealRequest] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
+  const [copilotDraft, setCopilotDraft] = useState("");
+  const [copilotCardOpen, setCopilotCardOpen] = useState(true);
+  const copilotInputRef = useRef<HTMLTextAreaElement>(null);
+  // Canvas effects for the copilot's edits: highlight what it touched, glide to what it added.
+  const [highlights, setHighlights] = useState<ReadonlyMap<string, NodeHighlight>>(new Map());
+  const [focusRequest, setFocusRequest] = useState<{ node: string; seq: number } | null>(null);
+  const highlightTimers = useRef(new Set<number>());
+  useEffect(() => {
+    const timers = highlightTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+    };
+  }, []);
 
   const navigate = useNavigate();
   const confirm = useConfirm();
   const saveAgent = useSaveAgent();
   const deleteAgent = useDeleteAgent();
   const allowNextNavigation = useUnsavedChangesGuard(state.dirty);
+
+  // The copilot reads the working copy when a prompt is sent and writes each of its
+  // edits back into it, live and unsaved (save as usual).
+  const agentRef = useRef(state.agent);
+  useEffect(() => {
+    agentRef.current = state.agent;
+  });
+  // The agent as of the copilot's previous edit in this turn (events can arrive
+  // faster than renders, so diffing against state.agent could miss one).
+  const copilotBaseRef = useRef<Agent | null>(null);
+  const copilot = useCopilot({
+    getAgent: useCallback(() => agentRef.current, []),
+    onAgent: useCallback((edited: Agent) => {
+      const previous = copilotBaseRef.current ?? agentRef.current;
+      const next = withPositions(edited);
+      copilotBaseRef.current = next;
+      dispatch({ type: "replaceAgent", agent: next });
+
+      const touched = diffNodes(previous, next);
+      if (touched.size === 0) return;
+      setHighlights((current) => new Map([...current, ...touched]));
+      const timer = window.setTimeout(() => {
+        highlightTimers.current.delete(timer);
+        setHighlights((current) => {
+          const rest = new Map(current);
+          touched.forEach((_, name) => rest.delete(name));
+          return rest;
+        });
+      }, HIGHLIGHT_MS);
+      highlightTimers.current.add(timer);
+      const added = [...touched].filter(([, kind]) => kind === "added").map(([name]) => name);
+      const newest = added.at(-1);
+      if (newest) setFocusRequest((request) => ({ node: newest, seq: (request?.seq ?? 0) + 1 }));
+    }, []),
+    onTurnEnd: useCallback((changed: boolean) => {
+      copilotBaseRef.current = null;
+      // Step back to show the whole result, if part of it is off-screen.
+      if (changed) setRevealRequest((n) => n + 1);
+    }, []),
+  });
+  const lastTurn = copilot.turns.at(-1);
+
+  const sendToCopilot = () => {
+    setCopilotCardOpen(true);
+    void copilot.send(copilotDraft);
+    setCopilotDraft("");
+  };
 
   const save = async () => {
     if (!state.dirty || saveAgent.isPending) return;
@@ -124,7 +192,13 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
     <EditorContext value={context}>
       <div className={styles.editor}>
         <ReactFlowProvider>
-          <FlowCanvas fitViewRequest={fitViewRequest} />
+          <FlowCanvas
+            fitViewRequest={fitViewRequest}
+            revealRequest={revealRequest}
+            focusRequest={focusRequest}
+            highlights={highlights}
+            working={copilot.running}
+          />
         </ReactFlowProvider>
 
         <div className={styles.top}>
@@ -170,6 +244,28 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
         </div>
 
         <Inspector agentId={agentId} onClose={deselect} />
+
+        {copilotCardOpen && (
+          <CopilotCard
+            turns={copilot.turns}
+            onPickAnswer={(answer) => {
+              setCopilotDraft((draft) => (draft.trim() ? `${draft.trim()}; ${answer}` : answer));
+              copilotInputRef.current?.focus();
+            }}
+            onClose={() => {
+              setCopilotCardOpen(false);
+            }}
+          />
+        )}
+        <CopilotPrompt
+          ref={copilotInputRef}
+          value={copilotDraft}
+          onChange={setCopilotDraft}
+          onSend={sendToCopilot}
+          onStop={copilot.stop}
+          running={copilot.running}
+          awaitingAnswer={lastTurn?.status === "done" && Boolean(lastTurn.questions?.length)}
+        />
 
         {jsonOpen && (
           <JsonDialog

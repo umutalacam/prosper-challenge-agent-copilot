@@ -37,12 +37,18 @@ async function readDetail(res: Response): Promise<string> {
   return `Request failed (${res.status} ${res.statusText})`;
 }
 
-/** JSON fetch against the agent API. Throws ApiError on non-2xx responses. */
-export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Fetch against the agent API, JSON by default. Throws ApiError on non-2xx responses. */
+export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   if (!headers.has("content-type")) headers.set("content-type", "application/json");
   const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
   if (!res.ok) throw new ApiError(res.status, await readDetail(res));
+  return res;
+}
+
+/** JSON request against the agent API. Throws ApiError on non-2xx responses. */
+export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const res = await apiFetch(path, init);
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }

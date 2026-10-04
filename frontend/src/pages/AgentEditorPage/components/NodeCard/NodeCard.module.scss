@@ -21,6 +21,42 @@ $handle-size: 10px;
   box-shadow: 0 0 0 3px $color-brand-soft;
 }
 
+// The copilot just added this node (pops in) or changed it (glows), for a moment.
+.added {
+  animation:
+    pop-in 420ms cubic-bezier(0.2, 0.9, 0.3, 1.25),
+    glow 1.8s ease-out;
+}
+
+.changed {
+  animation: glow 1.8s ease-out;
+}
+
+.added,
+.changed {
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    border-color: $color-brand;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes glow {
+  0%,
+  35% {
+    border-color: $color-brand;
+    box-shadow:
+      0 0 0 4px $color-brand-soft,
+      0 0 24px rgba($color-brand, 0.45);
+  }
+}
+
 .header {
   @include m.cluster(6px);
 }
