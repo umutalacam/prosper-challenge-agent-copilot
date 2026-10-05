@@ -2,8 +2,8 @@
 @use "@/shared/styles/mixins" as m;
 
 $inspector-top: $float-gap + $toolbar-height + $space-2;
-// Stops above the copilot prompt bar.
-$inspector-bottom: $float-gap + $copilot-bar-min-height + $space-2;
+// Stops above React Flow's zoom controls, bottom-right.
+$inspector-bottom: $float-gap + $canvas-controls-height + $space-2;
 
 .card {
   @include m.floating-panel;

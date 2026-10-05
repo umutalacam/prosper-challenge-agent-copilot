@@ -1,10 +1,11 @@
+import { clsx } from "clsx";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { ApiError, errorMessage, useDeleteAgent, useSaveAgent } from "@/shared/api";
 import type { Agent } from "@/shared/types/agent";
-import { Banner, useConfirm } from "@/shared/ui";
-import { CopilotCard } from "./components/CopilotCard/CopilotCard";
+import { Banner, SparklesIcon, useConfirm } from "@/shared/ui";
+import { CopilotPane } from "./components/CopilotPane/CopilotPane";
 import { CopilotPrompt } from "./components/CopilotPrompt/CopilotPrompt";
 import { EditorToolbar } from "./components/EditorToolbar/EditorToolbar";
 import { FlowCanvas } from "./components/FlowCanvas/FlowCanvas";
@@ -48,7 +49,7 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   const [error, setError] = useState<string | null>(null);
   const [jsonOpen, setJsonOpen] = useState(false);
   const [copilotDraft, setCopilotDraft] = useState("");
-  const [copilotCardOpen, setCopilotCardOpen] = useState(true);
+  const [copilotOpen, setCopilotOpen] = useState(true);
   const copilotInputRef = useRef<HTMLTextAreaElement>(null);
   // Canvas effects for the copilot's edits: animate what each touched and glide to it.
   const { highlights, focusRequest, show: showEdit } = useEditHighlights();
@@ -94,7 +95,6 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   }, [copilot.running]);
 
   const sendToCopilot = () => {
-    setCopilotCardOpen(true);
     void copilot.send(copilotDraft);
     setCopilotDraft("");
   };
@@ -182,6 +182,7 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
             focusRequest={focusRequest}
             highlights={highlights}
             working={copilot.running}
+            paneOpen={copilotOpen}
           />
         </ReactFlowProvider>
 
@@ -230,26 +231,43 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
 
         <Inspector agentId={agentId} onClose={deselect} />
 
-        {copilotCardOpen && (
-          <CopilotCard
+        {copilotOpen ? (
+          <CopilotPane
             turns={copilot.turns}
             onAnswer={(message) => {
               void copilot.send(message);
             }}
             onClose={() => {
-              setCopilotCardOpen(false);
+              setCopilotOpen(false);
             }}
+            footer={
+              <CopilotPrompt
+                ref={copilotInputRef}
+                value={copilotDraft}
+                onChange={setCopilotDraft}
+                onSend={sendToCopilot}
+                onStop={copilot.stop}
+                running={copilot.running}
+                awaitingAnswer={lastTurn?.status === "done" && Boolean(lastTurn.questions?.length)}
+              />
+            }
           />
+        ) : (
+          // Collapsed: a square button under the menu button, styled like it, brings
+          // the pane back; it twinkles while the copilot works.
+          <button
+            type="button"
+            className={clsx(styles.copilotToggle, copilot.running && styles.copilotWorking)}
+            aria-label={copilot.running ? "Show the copilot (working)" : "Show the copilot"}
+            title={copilot.running ? "Copilot (working…)" : "Copilot"}
+            aria-busy={copilot.running}
+            onClick={() => {
+              setCopilotOpen(true);
+            }}
+          >
+            <SparklesIcon className={styles.copilotMark} />
+          </button>
         )}
-        <CopilotPrompt
-          ref={copilotInputRef}
-          value={copilotDraft}
-          onChange={setCopilotDraft}
-          onSend={sendToCopilot}
-          onStop={copilot.stop}
-          running={copilot.running}
-          awaitingAnswer={lastTurn?.status === "done" && Boolean(lastTurn.questions?.length)}
-        />
 
         {jsonOpen && (
           <JsonDialog

@@ -1,9 +1,6 @@
 @use "@/shared/styles/tokens" as *;
 @use "@/shared/styles/mixins" as m;
 
-// Height of the horizontal zoom controls, so the minimap can stack above them.
-$controls-height: 32px;
-
 .canvas {
   position: relative;
   width: 100%;
@@ -44,16 +41,8 @@ $controls-height: 32px;
   box-shadow: $shadow-float;
 }
 
-.minimap {
-  @include m.floating-panel;
-  margin: $float-gap;
-  margin-bottom: $float-gap + $controls-height + $space-2;
-  overflow: hidden;
-}
-
-// Phones: the copilot prompt bar spans the bottom; pinch-zoom replaces these.
-.controls,
-.minimap {
+// Phones: pinch-zoom replaces these.
+.controls {
   @media (width < $breakpoint-sm) {
     display: none;
   }

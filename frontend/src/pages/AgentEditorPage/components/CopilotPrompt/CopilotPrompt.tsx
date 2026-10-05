@@ -9,14 +9,14 @@ export interface CopilotPromptProps {
   onSend: () => void;
   onStop: () => void;
   running: boolean;
-  /** The copilot asked something (answered in its card): the box offers a new request instead. */
+  /** The copilot asked something (answered above, in the pane): the box offers a new request instead. */
   awaitingAnswer: boolean;
   ref?: Ref<HTMLTextAreaElement>;
 }
 
 const MAX_ROWS = 6;
 
-/** The prompt bar at the bottom of the canvas. Enter sends, Shift+Enter breaks the line. */
+/** The prompt box at the bottom of the copilot pane. Enter sends, Shift+Enter breaks the line. */
 export function CopilotPrompt({
   value,
   onChange,
@@ -26,7 +26,7 @@ export function CopilotPrompt({
   awaitingAnswer,
   ref,
 }: CopilotPromptProps) {
-  const rows = Math.min(MAX_ROWS, Math.max(1, value.split("\n").length));
+  const rows = Math.min(MAX_ROWS, Math.max(2, value.split("\n").length));
   const canSend = !running && value.trim().length > 0;
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -53,7 +53,7 @@ export function CopilotPrompt({
         aria-label="Message the copilot"
         placeholder={
           awaitingAnswer
-            ? "Answer in the card, or ask for something else…"
+            ? "Answer above, or ask for something else…"
             : "Ask the copilot to build or change this agent…"
         }
         onChange={(e) => {

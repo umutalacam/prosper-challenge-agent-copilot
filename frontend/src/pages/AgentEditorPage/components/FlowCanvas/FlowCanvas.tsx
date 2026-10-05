@@ -2,11 +2,11 @@ import "@xyflow/react/dist/style.css";
 import {
   Background,
   Controls,
-  MiniMap,
   ReactFlow,
   useReactFlow,
   type Connection,
   type Edge,
+  type FitViewOptions,
   type NodeChange,
 } from "@xyflow/react";
 import { clsx } from "clsx";
@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FocusRequest } from "../../hooks/useEditHighlights";
 import { EMPTY_DIFF, type AgentDiff, type Highlight } from "../../lib/agentDiff";
 import { NODE_SIZE } from "../../lib/autoLayout";
+import { coveredLeft } from "../../lib/layout";
 import { NodeCard, type NodeCardNode } from "../NodeCard/NodeCard";
 import { useEditor } from "../../state/editorContext";
 import { toFlowEdges, toFlowNodes, type ActionEdge, type Dimensions } from "./flowElements";
@@ -21,7 +22,13 @@ import { focusView, unionBox, type Box } from "./viewport";
 import styles from "./FlowCanvas.module.scss";
 
 const nodeTypes = { agentNode: NodeCard };
-const FIT_VIEW_OPTIONS = { padding: 0.2, maxZoom: 1 };
+/** Fit the whole graph into the part of the canvas no panel covers. */
+function fitViewOptions(covered: number): FitViewOptions<NodeCardNode> {
+  if (!covered) return { padding: 0.2, maxZoom: 1 };
+  // A plain number is a fraction of the canvas; px leaves the covered strip out.
+  const left: `${number}px` = `${covered + 48}px`;
+  return { padding: { top: 0.1, right: 0.1, bottom: 0.1, left }, maxZoom: 1 };
+}
 
 /** An action the copilot just touched: drawn in (added) or glowing (changed). */
 const EDGE_HIGHLIGHT_CLASS: Record<Highlight, string | undefined> = {
@@ -40,6 +47,8 @@ export interface FlowCanvasProps {
   highlights?: AgentDiff;
   /** The copilot is working: arrows flow and the canvas edge glows. */
   working?: boolean;
+  /** The copilot pane is open over the canvas's left edge: fits and glides leave it out. */
+  paneOpen?: boolean;
 }
 
 const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -55,11 +64,18 @@ export function FlowCanvas({
   focusRequest = null,
   highlights = EMPTY_DIFF,
   working = false,
+  paneOpen = false,
 }: FlowCanvasProps) {
   const { state, dispatch } = useEditor();
   const { locked } = state;
   const { fitView, getNode, getZoom, setCenter } = useReactFlow<NodeCardNode, ActionEdge>();
   const canvasRef = useRef<HTMLDivElement>(null);
+  // Read by the fit / glide effects when they run; opening or closing the pane
+  // shouldn't replay them.
+  const paneOpenRef = useRef(paneOpen);
+  useEffect(() => {
+    paneOpenRef.current = paneOpen;
+  });
   const [measured, setMeasured] = useState<Dimensions>({});
 
   const nodes = useMemo(
@@ -94,7 +110,7 @@ export function FlowCanvas({
         }),
       );
       if (!view || !target) return;
-      const { x, y, zoom } = focusView(target, view, getZoom());
+      const { x, y, zoom } = focusView(target, view, getZoom(), coveredLeft(paneOpenRef.current));
       void setCenter(x, y, { zoom, duration: prefersReducedMotion() ? 0 : GLIDE_MS });
     });
     return () => {
@@ -106,7 +122,10 @@ export function FlowCanvas({
     if (!revealRequest) return;
     // After any glide in progress, step back to the whole graph.
     const timer = window.setTimeout(() => {
-      void fitView({ ...FIT_VIEW_OPTIONS, duration: prefersReducedMotion() ? 0 : 500 });
+      void fitView({
+        ...fitViewOptions(coveredLeft(paneOpenRef.current)),
+        duration: prefersReducedMotion() ? 0 : 500,
+      });
     }, GLIDE_MS + 100);
     return () => {
       clearTimeout(timer);
@@ -117,7 +136,7 @@ export function FlowCanvas({
     if (!fitViewRequest) return;
     // Wait a frame so React Flow has the new positions before fitting.
     const frame = requestAnimationFrame(() => {
-      void fitView({ ...FIT_VIEW_OPTIONS, duration: 300 });
+      void fitView({ ...fitViewOptions(coveredLeft(paneOpenRef.current)), duration: 300 });
     });
     return () => {
       cancelAnimationFrame(frame);
@@ -184,16 +203,15 @@ export function FlowCanvas({
         // cascades and guards always apply.
         deleteKeyCode={null}
         fitView
-        fitViewOptions={FIT_VIEW_OPTIONS}
+        fitViewOptions={fitViewOptions(coveredLeft(paneOpen))}
       >
         <Background gap={20} />
         <Controls
-          position="bottom-left"
+          position="bottom-right"
           orientation="horizontal"
           showInteractive={false}
           className={styles.controls}
         />
-        <MiniMap position="bottom-left" pannable zoomable className={styles.minimap} />
       </ReactFlow>
     </div>
   );

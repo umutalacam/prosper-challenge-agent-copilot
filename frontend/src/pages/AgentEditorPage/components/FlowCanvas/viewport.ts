@@ -31,24 +31,30 @@ export function unionBox(boxes: readonly Box[]): Box | null {
 }
 
 /**
- * The view that shows `target` centered in a `view`-sized canvas: keeps the
- * `current` zoom unless `target` doesn't fit (with `padding`, a fraction of the
- * view on each side), then zooms out just enough. Never zooms in.
+ * The `setCenter` arguments that show `target` centered in the visible part of a
+ * `view`-sized canvas, whose left `coveredLeft` px are under a panel: keeps the
+ * `current` zoom unless `target` doesn't fit there (with `padding`, a fraction
+ * of the visible area on each side), then zooms out just enough. Never zooms in.
  */
 export function focusView(
   target: Box,
   view: Size,
   current: number,
+  coveredLeft = 0,
   padding = 0.15,
 ): { x: number; y: number; zoom: number } {
   const usable = 1 - 2 * padding;
+  const visibleWidth = Math.max(view.width - coveredLeft, 1);
   const fit = Math.min(
-    target.width > 0 ? (view.width * usable) / target.width : Infinity,
+    target.width > 0 ? (visibleWidth * usable) / target.width : Infinity,
     target.height > 0 ? (view.height * usable) / target.height : Infinity,
   );
+  const zoom = Math.min(current, fit);
+  // setCenter centers on the whole canvas; the visible part's center is
+  // coveredLeft / 2 px to the right of it, so aim that far (in flow units) left.
   return {
-    x: target.x + target.width / 2,
+    x: target.x + target.width / 2 - coveredLeft / 2 / zoom,
     y: target.y + target.height / 2,
-    zoom: Math.min(current, fit),
+    zoom,
   };
 }

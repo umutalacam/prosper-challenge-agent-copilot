@@ -1,55 +1,38 @@
 @use "@/shared/styles/tokens" as *;
 @use "@/shared/styles/mixins" as m;
 
-$card-top: $float-gap + $toolbar-height + $space-2;
+$pane-top: $float-gap + $menu-button-size + $space-2;
 
-// The card starts as a pill (toolbar height) and grows to fit its content; its
-// height keeps following the content as the copilot streams (useContentHeight).
-$expand-from-width: 3 * $toolbar-height;
-$expand-from-height: $toolbar-height;
-$expand-duration: 420ms;
-$resize-duration: 280ms;
-
-// Top-left, under the menu button; stops above React Flow's minimap and controls.
-.card {
+// Docked on the left for the full height under the menu button: the conversation
+// scrolls in the middle, the prompt box stays at the bottom.
+.pane {
   @include m.floating-panel;
   position: absolute;
-  top: $card-top;
+  top: $pane-top;
+  bottom: $float-gap;
   left: $float-gap;
   z-index: $z-panel;
   display: flex;
   flex-direction: column;
-  width: $copilot-card-width;
-  max-height: calc(100% - #{$card-top + $canvas-chrome-height});
-  // Height: starts at the pill and transitions to the measured content height set
-  // inline (useContentHeight), on entrance and on every change after. Width: grows
-  // from the pill on entrance (the phone layout's width is `auto`, hence
-  // interpolate-size). Content is clipped while it grows and fades in once there's
-  // room, so text never jumps around visibly as it rewraps.
-  height: $expand-from-height;
-  interpolate-size: allow-keywords;
+  width: $copilot-pane-width;
   overflow: hidden;
-  transition: height $resize-duration cubic-bezier(0.2, 0.9, 0.3, 1);
-  animation: expand $expand-duration cubic-bezier(0.2, 0.9, 0.3, 1) backwards;
-
-  > * {
-    animation: content-in 200ms ease-out $expand-duration * 0.6 both;
-  }
+  animation: slide-in 200ms ease-out;
 
   @media (prefers-reduced-motion: reduce) {
-    transition: none;
-
-    &,
-    > * {
-      animation: none;
-    }
+    animation: none;
   }
 
-  // Phones: full width, above the prompt bar.
+  // Phones: the full width; close it to see the canvas.
   @media (width < $breakpoint-sm) {
     right: $float-gap;
     width: auto;
-    max-height: calc(100% - #{$card-top + $copilot-bar-min-height + 2 * $float-gap});
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
   }
 }
 
@@ -70,15 +53,45 @@ $resize-duration: 280ms;
 }
 
 .body {
+  flex: 1;
   min-height: 0;
   padding: $space-3;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
-// Wraps everything in the body: its height is what the card follows.
 .content {
   @include m.stack($space-3);
+}
+
+// Before the first prompt: what the copilot is for, centered in the empty pane.
+.intro {
+  @include m.stack($space-2);
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: $space-4;
+  text-align: center;
+}
+
+.introMark {
+  color: $color-accent;
+}
+
+.introTitle {
+  font-size: $font-size-md;
+  font-weight: 600;
+}
+
+.introText {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+// The prompt box, docked at the bottom.
+.footer {
+  padding: $space-3;
+  border-top: 1px solid $color-border;
 }
 
 .earlierToggle {
@@ -206,23 +219,5 @@ $resize-duration: 280ms;
 @keyframes spin {
   to {
     transform: rotate(360deg);
-  }
-}
-
-// Grows to the card's own (computed) size, so it ends exactly where layout puts it.
-@keyframes expand {
-  from {
-    width: $expand-from-width;
-    opacity: 0;
-  }
-
-  25% {
-    opacity: 1;
-  }
-}
-
-@keyframes content-in {
-  from {
-    opacity: 0;
   }
 }

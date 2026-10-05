@@ -1,4 +1,5 @@
 @use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
 
 // Distance from each edge that clears the hamburger menu button (AgentsLayout).
 // Used on both sides, so the toolbar centers on the viewport, as in Excalidraw.
@@ -39,4 +40,52 @@ $clear-menu: $float-gap + $menu-button-size + $space-2;
   border: 1px solid $color-danger-border;
   border-radius: $radius-lg;
   box-shadow: $shadow-float;
+}
+
+// The collapsed copilot pane: a square button under the menu button, matching it
+// (AgentsLayout's AppMenu trigger).
+.copilotToggle {
+  @include m.floating-panel;
+  position: absolute;
+  top: $float-gap + $menu-button-size + $space-2;
+  left: $float-gap;
+  z-index: $z-panel;
+  display: grid;
+  place-items: center;
+  width: $menu-button-size;
+  height: $menu-button-size;
+  padding: 0;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-surface-sunken;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.copilotMark {
+  color: $color-accent;
+}
+
+// The copilot is working while collapsed: brand border, the mark twinkles.
+.copilotWorking {
+  border-color: $color-brand;
+
+  .copilotMark {
+    animation: twinkle 1.2s ease-in-out infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+      animation: none;
+    }
+  }
+}
+
+@keyframes twinkle {
+  50% {
+    opacity: 0.45;
+    transform: scale(0.85) rotate(20deg);
+  }
 }

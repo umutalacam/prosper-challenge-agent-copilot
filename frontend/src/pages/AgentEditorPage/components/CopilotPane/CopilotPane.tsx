@@ -1,24 +1,27 @@
 import { clsx } from "clsx";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { CloseIcon, IconButton, SparklesIcon } from "@/shared/ui";
 import type { CopilotTurn } from "../../hooks/useCopilot";
-import { useContentHeight } from "../../hooks/useContentHeight";
 import { useStickToBottom } from "../../hooks/useStickToBottom";
 import { CopilotQuestions } from "../CopilotQuestions/CopilotQuestions";
-import styles from "./CopilotCard.module.scss";
+import styles from "./CopilotPane.module.scss";
 
-export interface CopilotCardProps {
+export interface CopilotPaneProps {
   turns: CopilotTurn[];
   /** The copilot's questions are all answered: the `Q: … / A: …` message to send it. */
   onAnswer: (message: string) => void;
   onClose: () => void;
+  /** Docked at the bottom of the pane: the prompt box. */
+  footer: ReactNode;
 }
 
 /**
- * The copilot conversation, top-left: the latest prompt, what the copilot is doing
- * and has done, its reply and any questions. Earlier turns fold away.
+ * The copilot's pane, docked on the left for the full height below the menu
+ * button: the conversation (latest prompt, what the copilot is doing and has
+ * done, its reply and any questions; earlier turns fold away), with the prompt
+ * box at the bottom.
  */
-export function CopilotCard({ turns, onAnswer, onClose }: CopilotCardProps) {
+export function CopilotPane({ turns, onAnswer, onClose, footer }: CopilotPaneProps) {
   const [showEarlier, setShowEarlier] = useState(false);
   const latest = turns.at(-1);
   // Follow the copilot's output as it streams in; each new prompt starts following again.
@@ -26,17 +29,10 @@ export function CopilotCard({ turns, onAnswer, onClose }: CopilotCardProps) {
     latest,
     latest?.id,
   );
-  // An explicit height that follows the content, so the card grows (and shrinks) smoothly.
-  const {
-    container: cardRef,
-    content: contentRef,
-    height,
-  } = useContentHeight<HTMLElement, HTMLDivElement>(latest !== undefined, bodyRef);
-  if (!latest) return null;
   const earlier = turns.slice(0, -1);
 
   return (
-    <section className={styles.card} aria-label="Copilot" ref={cardRef} style={{ height }}>
+    <section className={styles.pane} aria-label="Copilot">
       <header className={styles.header}>
         <SparklesIcon className={styles.mark} width={16} height={16} />
         <h2 className={styles.title}>Copilot</h2>
@@ -46,37 +42,50 @@ export function CopilotCard({ turns, onAnswer, onClose }: CopilotCardProps) {
       </header>
 
       <div className={styles.body} ref={bodyRef} onScroll={onBodyScroll}>
-        <div className={styles.content} ref={contentRef}>
-          {earlier.length > 0 && (
-            <>
-              <button
-                type="button"
-                className={styles.earlierToggle}
-                aria-expanded={showEarlier}
-                onClick={() => {
-                  setShowEarlier(!showEarlier);
-                }}
-              >
-                {showEarlier ? "Hide" : "Show"} earlier ({earlier.length})
-              </button>
-              {showEarlier && (
-                <ol className={styles.earlier}>
-                  {earlier.map((turn) => (
-                    <li key={turn.id}>
-                      <p className={styles.earlierPrompt}>{turn.prompt}</p>
-                      {(turn.reply ?? turn.error) && (
-                        <p className={styles.earlierReply}>{turn.reply ?? turn.error}</p>
-                      )}
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </>
-          )}
+        {latest ? (
+          <div className={styles.content}>
+            {earlier.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  className={styles.earlierToggle}
+                  aria-expanded={showEarlier}
+                  onClick={() => {
+                    setShowEarlier(!showEarlier);
+                  }}
+                >
+                  {showEarlier ? "Hide" : "Show"} earlier ({earlier.length})
+                </button>
+                {showEarlier && (
+                  <ol className={styles.earlier}>
+                    {earlier.map((turn) => (
+                      <li key={turn.id}>
+                        <p className={styles.earlierPrompt}>{turn.prompt}</p>
+                        {(turn.reply ?? turn.error) && (
+                          <p className={styles.earlierReply}>{turn.reply ?? turn.error}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </>
+            )}
 
-          <Turn turn={latest} onAnswer={onAnswer} />
-        </div>
+            <Turn turn={latest} onAnswer={onAnswer} />
+          </div>
+        ) : (
+          <div className={styles.intro}>
+            <SparklesIcon className={styles.introMark} width={24} height={24} />
+            <p className={styles.introTitle}>Build with the copilot</p>
+            <p className={styles.introText}>
+              Describe the agent you want, or ask for a change to this one. Edits appear live on the
+              canvas.
+            </p>
+          </div>
+        )}
       </div>
+
+      <div className={styles.footer}>{footer}</div>
     </section>
   );
 }

@@ -33,6 +33,22 @@ describe("focusView", () => {
     expect(zoom).toBeCloseTo(0.25);
   });
 
+  it("centers in the part of the canvas a panel doesn't cover", () => {
+    // 400px covered on the left: the visible center is 200px right of the canvas center,
+    // so at zoom 1 setCenter aims 200 flow units left of the target.
+    expect(focusView({ x: 100, y: 100, width: 200, height: 100 }, view, 1, 400)).toEqual({
+      x: 0,
+      y: 150,
+      zoom: 1,
+    });
+  });
+
+  it("fits the target into the visible width only", () => {
+    // 600px visible, 70% usable: 420 / 2100 = 0.2.
+    const { zoom } = focusView({ x: 0, y: 0, width: 2100, height: 100 }, view, 1, 400);
+    expect(zoom).toBeCloseTo(0.2);
+  });
+
   it("never zooms in", () => {
     expect(focusView({ x: 0, y: 0, width: 10, height: 10 }, view, 0.6).zoom).toBe(0.6);
   });

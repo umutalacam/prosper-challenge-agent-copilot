@@ -74,14 +74,12 @@ $toolbar-height: 44px; // the editor toolbar row, centered at the top
 $menu-button-size: $toolbar-height; // the square hamburger button, top-left; matches the toolbar
 $menu-width: 248px;
 $inspector-width: 360px;
-// Copilot: the prompt bar floats bottom-center, its conversation card top-left.
-$copilot-card-width: 360px;
-$copilot-bar-width: 520px;
-$copilot-bar-min-height: 56px;
-// Room React Flow's bottom-left minimap + zoom controls take (the card stops above
-// it; the bar stays clear of its width).
-$canvas-chrome-height: 220px;
-$canvas-chrome-width: 216px;
+// Copilot: a pane docked on the left, full height under the menu button, with the
+// prompt box at its bottom. Mirrored in AgentEditorPage/lib/layout.ts for the
+// canvas math (fit and focus leave the pane's width out).
+$copilot-pane-width: 360px;
+// React Flow's zoom controls, bottom-right (the inspector stops above them).
+$canvas-controls-height: 32px;
 $z-canvas-chrome: 5; // toolbar, React Flow controls
 $z-panel: 10; // app menu, inspector card
 $z-dialog: 100;
