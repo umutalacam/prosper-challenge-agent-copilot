@@ -1,0 +1,57 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.transcript {
+  @include m.stack($space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.turnRow {
+  @include m.stack($space-1);
+}
+
+// Where the call moved to another node.
+.node {
+  align-self: center;
+  margin-top: $space-2;
+  color: $color-text-muted;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+}
+
+.bubble {
+  max-width: 85%;
+  padding: $space-2 $space-3;
+  border-radius: $radius-lg;
+  font-size: $font-size-sm;
+  white-space: pre-wrap;
+}
+
+// The agent speaks on the left, the caller on the right.
+.bot {
+  align-self: flex-start;
+  border-bottom-left-radius: $radius-sm;
+  background: $color-surface-sunken;
+}
+
+.caller {
+  align-self: flex-end;
+  border-bottom-right-radius: $radius-sm;
+  background: $color-brand-soft;
+}
+
+.interrupted {
+  color: $color-text-muted;
+  font-style: italic;
+}
+
+.muted {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.visuallyHidden {
+  @include m.visually-hidden;
+}

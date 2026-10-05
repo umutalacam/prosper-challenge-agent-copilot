@@ -14,8 +14,12 @@ export { EmptyState } from "./EmptyState/EmptyState";
 export { Field, type FieldControlProps, type FieldProps } from "./Field/Field";
 export { IconButton } from "./IconButton/IconButton";
 export {
+  ActionIcon,
   ArrowLeftIcon,
   BracesIcon,
+  ChatIcon,
+  CheckIcon,
+  ClockIcon,
   CloseIcon,
   MenuIcon,
   PhoneIcon,
@@ -24,6 +28,7 @@ export {
   SparklesIcon,
   StopIcon,
   SettingsIcon,
+  type IconProps,
 } from "./icons/icons";
 export { Input, type InputProps } from "./Input/Input";
 export { Section } from "./Section/Section";

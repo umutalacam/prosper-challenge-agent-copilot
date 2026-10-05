@@ -5,6 +5,7 @@ import { useNavigate } from "react-router";
 import { ApiError, errorMessage, useDeleteAgent, useSaveAgent } from "@/shared/api";
 import type { Agent } from "@/shared/types/agent";
 import { Banner, SparklesIcon, useConfirm } from "@/shared/ui";
+import { CallLogPane } from "./components/CallLogPane/CallLogPane";
 import { CopilotPane } from "./components/CopilotPane/CopilotPane";
 import { CopilotPrompt } from "./components/CopilotPrompt/CopilotPrompt";
 import { EditorToolbar } from "./components/EditorToolbar/EditorToolbar";
@@ -155,6 +156,23 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
   });
   useKeyPress(["Escape"], state.selection.kind !== "none", deselect);
 
+  // The Call Log takes the inspector's spot on the right: opening it clears the
+  // selection, and selecting anything (a node, an action, Agent settings) closes it.
+  const [callsOpen, setCallsOpen] = useState(false);
+  const [lastSelection, setLastSelection] = useState(state.selection);
+  if (state.selection !== lastSelection) {
+    // Adjusting state while rendering, as React recommends over an effect here.
+    setLastSelection(state.selection);
+    if (state.selection.kind !== "none") setCallsOpen(false);
+  }
+  const toggleCalls = () => {
+    if (!callsOpen) deselect();
+    setCallsOpen(!callsOpen);
+  };
+  useKeyPress(["Escape"], callsOpen, () => {
+    setCallsOpen(false);
+  });
+
   // Delete / Backspace remove the selected node or action, through the reducer so
   // cascades and guards apply (inbound actions go too; the start node stays).
   const { selection } = state;
@@ -194,6 +212,9 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
             persisted={agentId !== null}
             settingsOpen={settingsOpen}
             locked={state.locked}
+            callsOpen={callsOpen}
+            callsDisabled={agentId === null}
+            onToggleCalls={toggleCalls}
             onToggleSettings={() => {
               dispatch({
                 type: "select",
@@ -230,6 +251,14 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
         </div>
 
         <Inspector agentId={agentId} onClose={deselect} />
+        {callsOpen && agentId !== null && (
+          <CallLogPane
+            agentId={agentId}
+            onClose={() => {
+              setCallsOpen(false);
+            }}
+          />
+        )}
 
         {copilotOpen ? (
           <CopilotPane

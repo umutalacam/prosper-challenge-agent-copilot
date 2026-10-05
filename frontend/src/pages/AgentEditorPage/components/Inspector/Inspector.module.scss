@@ -1,26 +1,9 @@
 @use "@/shared/styles/tokens" as *;
-@use "@/shared/styles/mixins" as m;
-
-$inspector-top: $float-gap + $toolbar-height + $space-2;
-// Stops above React Flow's zoom controls, bottom-right.
-$inspector-bottom: $float-gap + $canvas-controls-height + $space-2;
+@use "@/pages/AgentEditorPage/styles/panels";
 
 .card {
-  @include m.floating-panel;
-  position: absolute;
-  // Below the toolbar row, so the centered toolbar never runs under it.
-  top: $inspector-top;
-  right: $float-gap;
-  z-index: $z-panel;
-  width: $inspector-width;
-  max-height: calc(100% - #{$inspector-top + $inspector-bottom});
+  @include panels.right-panel;
   overflow-y: auto;
-  overscroll-behavior: contain;
-  animation: slide-in 160ms ease-out;
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
 }
 
 .close {
@@ -30,9 +13,4 @@ $inspector-bottom: $float-gap + $canvas-controls-height + $space-2;
   z-index: 1;
 }
 
-@keyframes slide-in {
-  from {
-    opacity: 0;
-    transform: translateX(12px);
-  }
-}
+@include panels.right-panel-keyframes;

@@ -1,4 +1,4 @@
-import { BracesIcon, BrandLogo, Button, SettingsIcon } from "@/shared/ui";
+import { BracesIcon, BrandLogo, Button, PhoneIcon, SettingsIcon } from "@/shared/ui";
 import styles from "./EditorToolbar.module.scss";
 
 const LOCKED_TITLE = "Read-only while the copilot is editing";
@@ -12,6 +12,11 @@ export interface EditorToolbarProps {
   settingsOpen: boolean;
   /** The copilot is editing: everything that would change the agent is disabled. */
   locked: boolean;
+  /** The Call Log pane is open. */
+  callsOpen: boolean;
+  /** The agent has no calls to show yet: it's never been saved. */
+  callsDisabled: boolean;
+  onToggleCalls: () => void;
   onToggleSettings: () => void;
   onShowJson: () => void;
   onAddNode: () => void;
@@ -27,6 +32,9 @@ export function EditorToolbar({
   persisted,
   settingsOpen,
   locked,
+  callsOpen,
+  callsDisabled,
+  onToggleCalls,
   onToggleSettings,
   onShowJson,
   onAddNode,
@@ -64,6 +72,19 @@ export function EditorToolbar({
       >
         <BracesIcon width={16} height={16} />
         JSON
+      </Button>
+      {/* Read-only, so it stays available while the copilot edits. */}
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-pressed={callsOpen}
+        className={styles.settings}
+        onClick={onToggleCalls}
+        disabled={callsDisabled}
+        title={callsDisabled ? "Save the agent first" : "Call Log"}
+      >
+        <PhoneIcon width={16} height={16} />
+        Calls
       </Button>
 
       <span className={styles.divider} aria-hidden="true" />

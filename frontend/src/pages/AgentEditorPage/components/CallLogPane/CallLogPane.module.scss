@@ -1,0 +1,49 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+@use "@/pages/AgentEditorPage/styles/panels";
+
+// The inspector's spot, at its full height, so the list scrolls inside it and
+// the pane doesn't jump as calls load or filters change.
+.pane {
+  @include panels.right-panel;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - #{panels.$right-panel-top + panels.$right-panel-bottom});
+  overflow: hidden;
+}
+
+.header {
+  @include m.cluster($space-2);
+  padding: $space-2 $space-2 $space-2 $space-3;
+  border-bottom: 1px solid $color-border;
+}
+
+.mark {
+  color: $color-accent;
+}
+
+.title {
+  flex: 1;
+  font-size: $font-size-md;
+  font-weight: 600;
+}
+
+// Under the header: each view (the list, a call) owns its scrolling area, so a
+// view can pin a footer below it (CallDetail's transcript button).
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scroll {
+  @include m.stack($space-3);
+  flex: 1;
+  min-height: 0;
+  padding: $space-3;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@include panels.right-panel-keyframes;

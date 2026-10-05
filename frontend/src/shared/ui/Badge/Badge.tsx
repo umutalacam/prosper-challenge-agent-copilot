@@ -2,7 +2,7 @@ import { clsx } from "clsx";
 import type { ReactNode } from "react";
 import styles from "./Badge.module.scss";
 
-export type BadgeTone = "success" | "neutral" | "brand";
+export type BadgeTone = "success" | "neutral" | "brand" | "danger";
 
 export interface BadgeProps {
   tone?: BadgeTone;

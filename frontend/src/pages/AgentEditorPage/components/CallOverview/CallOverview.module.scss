@@ -1,0 +1,66 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.overview {
+  @include m.stack($space-4);
+}
+
+.header {
+  display: flex;
+  gap: $space-3;
+  align-items: center;
+}
+
+.summary {
+  @include m.stack($space-1);
+  align-items: flex-start;
+}
+
+.titleLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-2;
+}
+
+.caller {
+  font-size: $font-size-md;
+  font-weight: 600;
+}
+
+.meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-1;
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+  font-variant-numeric: tabular-nums;
+}
+
+.section {
+  @include m.stack($space-1);
+}
+
+.heading {
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.notes {
+  @include m.stack($space-1);
+  margin: 0;
+  padding-left: $space-4;
+  font-size: $font-size-sm;
+}
+
+.warning {
+  color: $color-accent;
+}
+
+.error {
+  color: $color-danger;
+}

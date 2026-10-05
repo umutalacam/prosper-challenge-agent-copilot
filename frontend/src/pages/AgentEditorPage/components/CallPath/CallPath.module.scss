@@ -1,0 +1,151 @@
+@use "@/shared/styles/tokens" as *;
+
+$marker-size: 14px;
+$rail-x: $marker-size * 0.5 - 1px;
+
+// A vertical rail with a marker per node; the last marker shows the ending.
+.timeline {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  position: relative;
+  display: flex;
+  gap: $space-3;
+  padding-bottom: $space-4;
+
+  // The rail to the next step.
+  &:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    top: $marker-size + 2px;
+    bottom: 2px;
+    left: $rail-x;
+    width: 2px;
+    border-radius: 1px;
+    background: $color-border;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+  }
+}
+
+.marker {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: $marker-size;
+  height: $marker-size;
+  margin-top: 2px;
+  border: 2px solid $color-brand;
+  border-radius: 50%;
+  background: $color-surface;
+  color: $color-text-on-accent;
+}
+
+// How the call ended at the last step.
+.completed .marker {
+  border-color: $color-success;
+  background: $color-success;
+}
+
+.error .marker {
+  border-color: $color-danger;
+  background: $color-danger;
+}
+
+.abandoned .marker,
+.not_started .marker {
+  border-color: $color-neutral;
+  background: $color-neutral;
+}
+
+.stuck .marker {
+  border-color: $color-accent;
+  background: $color-accent;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-2;
+}
+
+.node {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  font-weight: 600;
+}
+
+.meta {
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+  font-variant-numeric: tabular-nums;
+}
+
+// What was collected, then the action that moved the call on, on its own line.
+.exit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: $space-1;
+  margin-top: $space-1;
+  font-size: $font-size-xs;
+}
+
+.args {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-1;
+}
+
+.function {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: $radius-sm;
+  background: $color-brand-soft;
+  color: $color-accent;
+  font-family: $font-family-mono;
+}
+
+.arg {
+  padding: 1px 6px;
+  overflow-wrap: anywhere;
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+  color: $color-text;
+}
+
+.ending {
+  margin-top: $space-1;
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+  font-weight: 600;
+}
+
+.completed .ending {
+  color: $color-success;
+}
+
+.error .ending {
+  color: $color-danger;
+}
+
+.muted {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}

@@ -1,0 +1,35 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-1;
+}
+
+.pill {
+  padding: 2px $space-3;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-pill;
+  background: $color-surface;
+  color: $color-text-muted;
+  font: inherit;
+  font-size: $font-size-sm;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-brand;
+    color: $color-text;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.active,
+.active:hover {
+  border-color: $color-accent;
+  background: $color-accent;
+  color: $color-text-on-accent;
+}

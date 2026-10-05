@@ -1,0 +1,36 @@
+// The editor's right-hand panel spot, shared by the inspector and the call log
+// (only one is open at a time), so both line up exactly.
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+// Below the toolbar row, so the centered toolbar never runs under it.
+$right-panel-top: $float-gap + $toolbar-height + $space-2;
+// Stops above React Flow's zoom controls, bottom-right.
+$right-panel-bottom: $float-gap + $canvas-controls-height + $space-2;
+
+// A floating card in the right-hand spot; it slides in when it opens.
+// Pair it with `right-panel-keyframes` once at the top level of the module.
+@mixin right-panel {
+  @include m.floating-panel;
+  position: absolute;
+  top: $right-panel-top;
+  right: $float-gap;
+  z-index: $z-panel;
+  width: $inspector-width;
+  max-height: calc(100% - #{$right-panel-top + $right-panel-bottom});
+  overscroll-behavior: contain;
+  animation: slide-in 160ms ease-out;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@mixin right-panel-keyframes {
+  @keyframes slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(12px);
+    }
+  }
+}

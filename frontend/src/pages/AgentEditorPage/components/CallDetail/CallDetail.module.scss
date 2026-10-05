@@ -1,0 +1,41 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+// Fills the pane under its header: the content scrolls, the footer stays put.
+.detail {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scroll {
+  @include m.stack($space-3);
+  flex: 1;
+  min-height: 0;
+  padding: $space-3;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.back {
+  align-self: flex-start;
+}
+
+// Pinned to the bottom of the pane, the full width of it.
+.footer {
+  flex: none;
+  padding: $space-3;
+  border-top: 1px solid $color-border;
+  background: $color-surface;
+}
+
+.muted {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.error {
+  color: $color-danger;
+  font-size: $font-size-sm;
+}

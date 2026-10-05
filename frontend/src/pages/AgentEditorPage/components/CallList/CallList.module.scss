@@ -1,0 +1,8 @@
+@use "@/shared/styles/mixins" as m;
+
+.list {
+  @include m.stack(2px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

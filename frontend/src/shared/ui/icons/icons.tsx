@@ -1,119 +1,63 @@
-// Small stroke icons (24px grid, currentColor). Decorative: pair them with a text
-// label or an IconButton `label`, which supplies the accessible name.
+// The app's icons, all from Bootstrap Icons (react-bootstrap-icons), under names
+// that say what they're for. Decorative by default (18px, aria-hidden): pair
+// them with a text label or an IconButton `label`, which supplies the
+// accessible name. Width/height/className props override the defaults.
 
-import type { ReactNode, SVGProps } from "react";
+import type { ComponentType } from "react";
+import {
+  ArrowLeft,
+  ArrowUp,
+  Braces,
+  ChatDots,
+  CheckLg,
+  ChevronDoubleRight,
+  Clock,
+  Gear,
+  List,
+  Robot,
+  Stars,
+  StopFill,
+  Telephone,
+  XLg,
+  type IconProps as BootstrapIconProps,
+} from "react-bootstrap-icons";
 
-type IconProps = Omit<SVGProps<SVGSVGElement>, "children">;
+export type IconProps = BootstrapIconProps;
 
-function Icon({ children, ...props }: IconProps & { children: ReactNode }) {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      focusable="false"
-      {...props}
-    >
-      {children}
-    </svg>
-  );
+/** A Bootstrap icon with the app's defaults. */
+function appIcon(Glyph: ComponentType<BootstrapIconProps>, displayName: string) {
+  function AppIcon(props: IconProps) {
+    return <Glyph size={18} aria-hidden focusable={false} {...props} />;
+  }
+  AppIcon.displayName = displayName;
+  return AppIcon;
 }
 
 /** Curly braces: the raw JSON view. */
-export function BracesIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1" />
-      <path d="M16 21h1a2 2 0 0 0 2-2v-5a2 2 0 0 1 2-2 2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" />
-    </Icon>
-  );
-}
-
+export const BracesIcon = appIcon(Braces, "BracesIcon");
 /** Sparkles: the AI copilot. */
-export function SparklesIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M11 3l1.6 4.4L17 9l-4.4 1.6L11 15l-1.6-4.4L5 9l4.4-1.6z" />
-      <path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z" />
-    </Icon>
-  );
-}
-
+export const SparklesIcon = appIcon(Stars, "SparklesIcon");
 /** Arrow up: send a prompt. */
-export function SendIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M12 19V5M6 11l6-6 6 6" />
-    </Icon>
-  );
-}
-
+export const SendIcon = appIcon(ArrowUp, "SendIcon");
 /** Square: stop what's running. */
-export function StopIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <rect x="7" y="7" width="10" height="10" rx="1.5" fill="currentColor" stroke="none" />
-    </Icon>
-  );
-}
-
+export const StopIcon = appIcon(StopFill, "StopIcon");
 /** Hamburger: opens the app menu. */
-export function MenuIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M4 6h16M4 12h16M4 18h16" />
-    </Icon>
-  );
-}
-
-export function ArrowLeftIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M19 12H5M11 6l-6 6 6 6" />
-    </Icon>
-  );
-}
-
-export function PhoneIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z" />
-    </Icon>
-  );
-}
-
+export const MenuIcon = appIcon(List, "MenuIcon");
+/** Back. */
+export const ArrowLeftIcon = appIcon(ArrowLeft, "ArrowLeftIcon");
+/** Telephone: a voice call (test call, the call log). */
+export const PhoneIcon = appIcon(Telephone, "PhoneIcon");
 /** A robot: an agent, e.g. in the menu's recent list. */
-export function RobotIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <rect x="4" y="8" width="16" height="12" rx="2" />
-      <path d="M12 8V4M2 13v3M22 13v3" />
-      <circle cx="12" cy="3" r="1" />
-      <path d="M9 13v1M15 13v1M9.5 17h5" />
-    </Icon>
-  );
-}
-
-export function CloseIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M6 6l12 12M18 6L6 18" />
-    </Icon>
-  );
-}
-
-export function SettingsIcon(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
-      <circle cx="16" cy="7" r="2" />
-      <circle cx="10" cy="17" r="2" />
-    </Icon>
-  );
-}
+export const RobotIcon = appIcon(Robot, "RobotIcon");
+/** Close a panel or dialog. */
+export const CloseIcon = appIcon(XLg, "CloseIcon");
+/** Gear: settings. */
+export const SettingsIcon = appIcon(Gear, "SettingsIcon");
+/** Double chevron: an agent action, the function that moves a call on. */
+export const ActionIcon = appIcon(ChevronDoubleRight, "ActionIcon");
+/** Speech bubble: a conversation, e.g. a call's transcript. */
+export const ChatIcon = appIcon(ChatDots, "ChatIcon");
+/** Check mark: done, completed. */
+export const CheckIcon = appIcon(CheckLg, "CheckIcon");
+/** Clock: a duration. */
+export const ClockIcon = appIcon(Clock, "ClockIcon");
