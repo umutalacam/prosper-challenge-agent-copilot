@@ -24,6 +24,7 @@ export {
   CloseIcon,
   FixIcon,
   FlagIcon,
+  IssuesIcon,
   MenuIcon,
   PhoneIcon,
   RobotIcon,

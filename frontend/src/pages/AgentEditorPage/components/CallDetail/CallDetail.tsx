@@ -14,6 +14,8 @@ export interface CallDetailProps {
   now: Date;
   /** Back to the list. */
   onBack: () => void;
+  /** What Back returns to, as the button says it. */
+  backLabel?: string;
   /** Hand an analysis finding to the copilot ("Fix with copilot"). */
   onFix?: (fix: CopilotFix) => void;
   /** The copilot is busy with another turn. */
@@ -24,7 +26,15 @@ export interface CallDetailProps {
  * One call: its overview first, with the transcript button pinned to the bottom
  * of the pane; then the transcript. Back steps out one level.
  */
-export function CallDetail({ agentId, callId, now, onBack, onFix, fixDisabled }: CallDetailProps) {
+export function CallDetail({
+  agentId,
+  callId,
+  now,
+  onBack,
+  backLabel = "All calls",
+  onFix,
+  fixDisabled,
+}: CallDetailProps) {
   const call = useCall(agentId, callId);
   const [view, setView] = useState<"overview" | "transcript">("overview");
   // Findings sent to the copilot while this call is open; reopening the call starts over.
@@ -45,7 +55,7 @@ export function CallDetail({ agentId, callId, now, onBack, onFix, fixDisabled }:
           }}
         >
           <ArrowLeftIcon width={14} height={14} />
-          {inTranscript ? "Overview" : "All calls"}
+          {inTranscript ? "Overview" : backLabel}
         </Button>
         {call.isPending ? (
           <p className={styles.muted}>Loading the call…</p>

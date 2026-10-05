@@ -145,3 +145,49 @@ export interface CallDetail extends CallSummary {
   final_state: FlowState;
   events: CallEvent[];
 }
+
+/** One kind of issue at one node, across a version's calls (the Issues pane). */
+export interface IssueGroup {
+  kind: CallIssueKind;
+  node: string | null;
+  /** Calls it happened in. */
+  call_count: number;
+  /** Of those, calls that ended after the issues were last seen. */
+  new_count: number;
+  /** When the latest of those calls ended (ISO 8601). */
+  last_at: string;
+  /** The most recent of those calls (at most 20), newest first. */
+  calls: { id: string; ended_at: string }[];
+}
+
+/** A customer's flag in the Issues pane. */
+export interface IssueFlag {
+  call_id: string;
+  reason: string;
+  /** ISO 8601. */
+  created_at: string;
+  /** Flagged after the issues were last seen. */
+  new: boolean;
+}
+
+/** How one version of the agent did. */
+export interface VersionIssues {
+  version: number;
+  call_count: number;
+  /** Calls with an issue or a flag. */
+  calls_with_issues: number;
+  /** Failures first (stuck, error), then long stays. */
+  groups: IssueGroup[];
+  /** Newest first. */
+  flags: IssueFlag[];
+}
+
+/** GET /api/agents/{id}/issues: the agent's issues across its calls, by version. */
+export interface AgentIssues {
+  /** When they were last seen (ISO 8601); null if never. */
+  seen_at: string | null;
+  /** Stuck and error calls plus flags since `seen_at`: the toolbar badge. */
+  new_count: number;
+  /** Newest first; only versions with calls. */
+  versions: VersionIssues[];
+}

@@ -10,11 +10,13 @@ export {
   useAgent,
   useAgentList,
   useAgentCalls,
+  useAgentIssues,
   useBotStatus,
   useCall,
   useDeleteAgent,
   useDeployAgent,
   useFlagCall,
+  useMarkIssuesSeen,
   useSaveAgent,
   type SaveAgentInput,
 } from "./queries";

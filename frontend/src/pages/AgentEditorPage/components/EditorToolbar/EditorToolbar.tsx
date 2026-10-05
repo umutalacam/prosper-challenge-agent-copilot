@@ -1,4 +1,4 @@
-import { BracesIcon, BrandLogo, Button, PhoneIcon, SettingsIcon } from "@/shared/ui";
+import { BracesIcon, BrandLogo, Button, IssuesIcon, PhoneIcon, SettingsIcon } from "@/shared/ui";
 import styles from "./EditorToolbar.module.scss";
 
 const LOCKED_TITLE = "Read-only while the copilot is editing";
@@ -14,9 +14,14 @@ export interface EditorToolbarProps {
   locked: boolean;
   /** The Call Log pane is open. */
   callsOpen: boolean;
-  /** The agent has no calls to show yet: it's never been saved. */
+  /** The agent has no calls (or issues) to show yet: it's never been saved. */
   callsDisabled: boolean;
   onToggleCalls: () => void;
+  /** The Issues pane is open. */
+  issuesOpen: boolean;
+  /** New issues since they were last seen: the badge on the Issues toggle. */
+  newIssues: number;
+  onToggleIssues: () => void;
   onToggleSettings: () => void;
   onShowJson: () => void;
   onAddNode: () => void;
@@ -35,6 +40,9 @@ export function EditorToolbar({
   callsOpen,
   callsDisabled,
   onToggleCalls,
+  issuesOpen,
+  newIssues,
+  onToggleIssues,
   onToggleSettings,
   onShowJson,
   onAddNode,
@@ -85,6 +93,24 @@ export function EditorToolbar({
       >
         <PhoneIcon width={16} height={16} />
         Calls
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-pressed={issuesOpen}
+        aria-label={newIssues > 0 ? `Issues, ${String(newIssues)} new` : undefined}
+        className={styles.settings}
+        onClick={onToggleIssues}
+        disabled={callsDisabled}
+        title={callsDisabled ? "Save the agent first" : "Issues across this agent's calls"}
+      >
+        <IssuesIcon width={16} height={16} />
+        Issues
+        {newIssues > 0 && (
+          <span className={styles.count} aria-hidden="true">
+            {newIssues > 99 ? "99+" : newIssues}
+          </span>
+        )}
       </Button>
 
       <span className={styles.divider} aria-hidden="true" />

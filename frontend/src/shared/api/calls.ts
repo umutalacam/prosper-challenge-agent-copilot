@@ -1,4 +1,10 @@
-import type { CallDetail, CallFlag, CallOutcome, CallSummary } from "@/shared/types/call";
+import type {
+  AgentIssues,
+  CallDetail,
+  CallFlag,
+  CallOutcome,
+  CallSummary,
+} from "@/shared/types/call";
 import { request } from "./http";
 
 export interface CallListOptions {
@@ -23,6 +29,17 @@ export const callsApi = {
   /** One of the agent's calls in full: transcript, timeline, final state. */
   get: (agentId: string, callId: string) =>
     request<CallDetail>(`${callsPath(agentId)}/${encodeURIComponent(callId)}`),
+
+  /** The agent's issues across its calls, by version, and how many are new. */
+  issues: (agentId: string) =>
+    request<AgentIssues>(`/agents/${encodeURIComponent(agentId)}/issues`),
+
+  /** Mark the agent's issues seen now (only what happens after is new); returns them updated. */
+  markIssuesSeen: (agentId: string) =>
+    request<AgentIssues>(`/agents/${encodeURIComponent(agentId)}/issues`, {
+      method: "PATCH",
+      body: JSON.stringify({ seen: true }),
+    }),
 
   /** Flag a call: a customer says something went wrong. Its AI analysis reruns in the background. */
   flag: (agentId: string, callId: string, reason: string) =>

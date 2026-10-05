@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Agent, StoredAgent } from "@/shared/types/agent";
 import { agentsApi } from "./agents";
-import type { CallOutcome } from "@/shared/types/call";
+import type { AgentIssues, CallOutcome } from "@/shared/types/call";
 import { botApi } from "./bot";
 import { callsApi } from "./calls";
 import { ApiError } from "./http";
@@ -87,6 +87,7 @@ export const callKeys = {
     [...callKeys.agent(agentId), "list", [...outcomes].sort()] as const,
   detail: (agentId: string, callId: string) =>
     [...callKeys.agent(agentId), "detail", callId] as const,
+  issues: (agentId: string) => [...callKeys.agent(agentId), "issues"] as const,
 };
 
 /** How often an open call log looks for new calls. */
@@ -137,5 +138,29 @@ export function useFlagCall(agentId: string, callId: string) {
   return useMutation({
     mutationFn: (reason: string) => callsApi.flag(agentId, callId, reason),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: callKeys.agent(agentId) }),
+  });
+}
+
+/**
+ * The agent's issues across its calls, by version. Polls while enabled, so the
+ * editor's Issues badge picks up new problems during a session.
+ */
+export function useAgentIssues(agentId: string, { enabled = true }: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: callKeys.issues(agentId),
+    queryFn: () => callsApi.issues(agentId),
+    enabled,
+    refetchInterval: enabled ? CALLS_POLL_MS : false,
+  });
+}
+
+/** Mark the agent's issues seen (the Issues pane opened): the badge clears at once. */
+export function useMarkIssuesSeen(agentId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => callsApi.markIssuesSeen(agentId),
+    onSuccess: (issues) => {
+      queryClient.setQueryData<AgentIssues>(callKeys.issues(agentId), issues);
+    },
   });
 }

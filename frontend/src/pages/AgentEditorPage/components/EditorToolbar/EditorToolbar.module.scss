@@ -23,6 +23,20 @@
   }
 }
 
+// New issues on the Issues toggle: a small count pill.
+.count {
+  min-width: 16px;
+  padding: 0 5px;
+  border-radius: $radius-pill;
+  background: $color-danger;
+  color: $color-text-on-accent;
+  font-size: $font-size-xs;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 .divider {
   flex: none;
   width: 1px;

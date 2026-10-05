@@ -1,0 +1,220 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+@use "@/pages/AgentEditorPage/styles/panels";
+
+// The inspector's spot at its full height, like the Call Log, so the list scrolls inside.
+.pane {
+  @include panels.right-panel;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - #{panels.$right-panel-top + panels.$right-panel-bottom});
+  overflow: hidden;
+}
+
+.header {
+  @include m.cluster($space-2);
+  padding: $space-2 $space-2 $space-2 $space-3;
+  border-bottom: 1px solid $color-border;
+}
+
+.mark {
+  color: $color-accent;
+}
+
+.title {
+  flex: 1;
+  font-size: $font-size-md;
+  font-weight: 600;
+}
+
+// Each view (the issues, a call) owns its scrolling area, as in the Call Log.
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.scroll {
+  @include m.stack($space-5);
+  flex: 1;
+  min-height: 0;
+  padding: $space-3;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+// ---- a version ----
+.version {
+  @include m.stack($space-2);
+}
+
+.versionHeader {
+  @include m.cluster($space-2);
+  flex-wrap: wrap;
+}
+
+.versionName {
+  font-family: $font-family-mono;
+  font-size: $font-size-md;
+  font-weight: 700;
+}
+
+.meta {
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  margin: 0;
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.items {
+  @include m.stack($space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// ---- an issue group: a row that expands to its calls ----
+.group {
+  border-radius: $radius-md;
+  background: $color-surface-sunken;
+
+  &[open] .summary {
+    border-bottom: 1px solid $color-border;
+  }
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  cursor: pointer;
+  list-style: none;
+
+  &::-webkit-details-marker {
+    display: none;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+    border-radius: $radius-md;
+  }
+}
+
+// What kind: failures in the brand / danger color, notes in neutral.
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.stuck {
+  background: $color-brand;
+}
+
+.error {
+  background: $color-danger;
+}
+
+.long_stay {
+  background: $color-border-strong;
+}
+
+.groupBody,
+.flagBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.label {
+  font-size: $font-size-sm;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.calls {
+  @include m.stack(0);
+  margin: 0;
+  padding: $space-1;
+  list-style: none;
+
+  > .muted {
+    padding: $space-1 $space-2;
+    font-size: $font-size-xs;
+  }
+}
+
+.call {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  width: 100%;
+  padding: $space-1 $space-2;
+  border: none;
+  border-radius: $radius-sm;
+  background: none;
+  color: $color-text;
+  font: inherit;
+  font-size: $font-size-sm;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: $color-surface;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.callName {
+  flex: 1;
+  min-width: 0;
+}
+
+// ---- a customer's flag: opens its call ----
+.flag {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  width: 100%;
+  padding: $space-2 $space-3;
+  border: none;
+  border-radius: $radius-md;
+  background: $color-danger-soft;
+  color: $color-text;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, $color-danger-soft, $color-danger 6%);
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.flagMark {
+  flex: none;
+  color: $color-danger;
+}
+
+.flagReason {
+  font-size: $font-size-sm;
+  overflow-wrap: anywhere;
+}
+
+@include panels.right-panel-keyframes;

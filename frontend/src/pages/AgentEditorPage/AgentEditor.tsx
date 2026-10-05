@@ -2,11 +2,13 @@ import { clsx } from "clsx";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { ApiError, errorMessage, useDeleteAgent, useSaveAgent } from "@/shared/api";
+import { ApiError, errorMessage, useAgentIssues, useDeleteAgent, useSaveAgent } from "@/shared/api";
+import type { CopilotFix } from "@/shared/types/copilot";
 import type { Agent } from "@/shared/types/agent";
 import { Banner, SparklesIcon, useConfirm } from "@/shared/ui";
 import { CallLogPane } from "./components/CallLogPane/CallLogPane";
 import { CopilotPane } from "./components/CopilotPane/CopilotPane";
+import { IssuesPane } from "./components/IssuesPane/IssuesPane";
 import { CopilotPrompt } from "./components/CopilotPrompt/CopilotPrompt";
 import { EditorToolbar } from "./components/EditorToolbar/EditorToolbar";
 import { FlowCanvas } from "./components/FlowCanvas/FlowCanvas";
@@ -174,22 +176,31 @@ export function AgentEditor({
   });
   useKeyPress(["Escape"], state.selection.kind !== "none", deselect);
 
-  // The Call Log takes the inspector's spot on the right: opening it clears the
-  // selection, and selecting anything (a node, an action, Agent settings) closes it.
-  const [callsOpen, setCallsOpen] = useState(false);
+  // The Call Log and the Issues pane take the inspector's spot on the right, one at
+  // a time: opening one clears the selection, and selecting anything (a node, an
+  // action, Agent settings) closes it.
+  const [rightPane, setRightPane] = useState<"calls" | "issues" | null>(null);
   const [lastSelection, setLastSelection] = useState(state.selection);
   if (state.selection !== lastSelection) {
     // Adjusting state while rendering, as React recommends over an effect here.
     setLastSelection(state.selection);
-    if (state.selection.kind !== "none") setCallsOpen(false);
+    if (state.selection.kind !== "none") setRightPane(null);
   }
-  const toggleCalls = () => {
-    if (!callsOpen) deselect();
-    setCallsOpen(!callsOpen);
+  const togglePane = (pane: "calls" | "issues") => {
+    if (rightPane !== pane) deselect();
+    setRightPane(rightPane === pane ? null : pane);
   };
-  useKeyPress(["Escape"], callsOpen, () => {
-    setCallsOpen(false);
+  useKeyPress(["Escape"], rightPane !== null, () => {
+    setRightPane(null);
   });
+  // For the Issues badge: polls while the agent is saved, so new problems show up.
+  const issues = useAgentIssues(agentId ?? "", { enabled: agentId !== null });
+  // "Fix with copilot" from either pane: show the fix card; the pane stays open
+  // (it's read-only, so it's fine while the copilot edits).
+  const fixWithCopilot = (fix: CopilotFix) => {
+    setCopilotOpen(true);
+    void copilot.fix(fix);
+  };
 
   // Delete / Backspace remove the selected node or action, through the reducer so
   // cascades and guards apply (inbound actions go too; the start node stays).
@@ -230,9 +241,16 @@ export function AgentEditor({
             persisted={agentId !== null}
             settingsOpen={settingsOpen}
             locked={state.locked}
-            callsOpen={callsOpen}
+            callsOpen={rightPane === "calls"}
             callsDisabled={agentId === null}
-            onToggleCalls={toggleCalls}
+            onToggleCalls={() => {
+              togglePane("calls");
+            }}
+            issuesOpen={rightPane === "issues"}
+            newIssues={issues.data?.new_count ?? 0}
+            onToggleIssues={() => {
+              togglePane("issues");
+            }}
             onToggleSettings={() => {
               dispatch({
                 type: "select",
@@ -269,17 +287,23 @@ export function AgentEditor({
         </div>
 
         <Inspector agentId={agentId} onClose={deselect} />
-        {callsOpen && agentId !== null && (
+        {rightPane === "calls" && agentId !== null && (
           <CallLogPane
             agentId={agentId}
             onClose={() => {
-              setCallsOpen(false);
+              setRightPane(null);
             }}
-            onFix={(fix) => {
-              // Show the fix card; the Call Log stays open (read-only while the copilot edits).
-              setCopilotOpen(true);
-              void copilot.fix(fix);
+            onFix={fixWithCopilot}
+            fixDisabled={copilot.running}
+          />
+        )}
+        {rightPane === "issues" && agentId !== null && (
+          <IssuesPane
+            agentId={agentId}
+            onClose={() => {
+              setRightPane(null);
             }}
+            onFix={fixWithCopilot}
             fixDisabled={copilot.running}
           />
         )}
