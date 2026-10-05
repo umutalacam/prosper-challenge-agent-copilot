@@ -81,5 +81,6 @@ $copilot-pane-width: 360px;
 // React Flow's zoom controls, bottom-right (the inspector stops above them).
 $canvas-controls-height: 32px;
 $z-canvas-chrome: 5; // toolbar, React Flow controls
-$z-panel: 10; // app menu, inspector card
+$z-panel: 10; // inspector card, copilot pane, call log
+$z-menu: 20; // the app menu: its dropdown opens over the copilot pane
 $z-dialog: 100;
