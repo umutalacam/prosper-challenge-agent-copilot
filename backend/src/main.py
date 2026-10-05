@@ -42,6 +42,7 @@ from dependencies import (
     get_agent_repository,
     get_agent_service,
     get_bot_service,
+    get_copilot_analyzer,
     get_call_analyzer,
     get_call_record_service,
     get_call_repository,
@@ -63,10 +64,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     repository = app.dependency_overrides.get(get_agent_repository, get_agent_repository)()
     call_repository = app.dependency_overrides.get(get_call_repository, get_call_repository)()
     deployments = app.dependency_overrides.get(get_deployment_repository, get_deployment_repository)()
+    copilot_analyzer = app.dependency_overrides.get(get_copilot_analyzer, get_copilot_analyzer)()
     # The same cached instances the routes get through Depends. Keyword arguments,
     # as FastAPI passes them: lru_cache keys f(x) and f(name=x) apart.
     agents = get_agent_service(repository=repository)
-    call_records = get_call_record_service(repository=call_repository, agents=agents, analyzer=get_call_analyzer())
+    call_records = get_call_record_service(
+        repository=call_repository, agents=agents, analyzer=get_call_analyzer(), copilot_analyzer=copilot_analyzer
+    )
     bot = get_bot_service(agents=agents, call_records=call_records, deployments=deployments)
     yield
     await bot.close()  # hang up calls in progress

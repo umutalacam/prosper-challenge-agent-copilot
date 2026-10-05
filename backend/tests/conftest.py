@@ -6,11 +6,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.agents.repository import AgentRepository
+from api.calls.copilot_analyzer import CopilotAnalyzer
 from api.calls.repository import CallRecord, CallRepository, Outcome
-from config import SEED_SQL
+from api.copilot.model import CopilotModel
+from config import CALLS_DIR, SEED_SQL
 from api.bot.repository import DeploymentRepository
-from dependencies import get_agent_repository, get_call_repository, get_deployment_repository
+from dependencies import get_agent_repository, get_copilot_analyzer, get_call_repository, get_deployment_repository
 from main import create_app
+from tests.copilot_fakes import ScriptedModel
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "example_flow.json"
 
@@ -49,6 +52,7 @@ def client(api_db: Path):
     app.dependency_overrides[get_agent_repository] = lambda: test_repository
     app.dependency_overrides[get_call_repository] = lambda: test_calls
     app.dependency_overrides[get_deployment_repository] = lambda: test_deployments
+    app.dependency_overrides[get_copilot_analyzer] = lambda: make_copilot_analyzer()
     with TestClient(app) as client:
         yield client
 
@@ -83,6 +87,15 @@ def make_agent(name: str = "Test agent", nodes: int = 1) -> dict:
             for i, n in enumerate(names)
         ],
     }
+
+
+def make_copilot_analyzer(client: ScriptedModel | None = None) -> CopilotAnalyzer:
+    """A copilot analyzer over a scripted OpenAI client, with the real prompt and schema.
+
+    :param client: The scripted client; one with no answers when omitted.
+    :return: The copilot analyzer.
+    """
+    return CopilotAnalyzer(CopilotModel(client or ScriptedModel(), "test-model"), CALLS_DIR, "test-model")
 
 
 CALL_T0 = datetime(2026, 10, 5, 9, 0, tzinfo=UTC)

@@ -111,11 +111,19 @@ export function useAgentCalls(
   });
 }
 
-/** One call in full. A stored call never changes, so it's fetched once. */
+/** How often an open call looks for its analysis while the model is still writing it. */
+const ANALYSIS_POLL_MS = 3_000;
+
+/**
+ * One call in full. A stored call never changes, so it's fetched once, except
+ * that it polls while its AI analysis is pending (it's written after the call).
+ */
 export function useCall(agentId: string, callId: string) {
   return useQuery({
     queryKey: callKeys.detail(agentId, callId),
     queryFn: () => callsApi.get(agentId, callId),
     staleTime: Infinity,
+    refetchInterval: (query) =>
+      query.state.data?.analysis?.status === "pending" ? ANALYSIS_POLL_MS : false,
   });
 }

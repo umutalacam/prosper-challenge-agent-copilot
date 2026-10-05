@@ -62,6 +62,19 @@ const detail: CallDetail = {
       ending: "completed",
     },
   ],
+  analysis: {
+    status: "done",
+    summary: "The caller hesitated over their date of birth.",
+    findings: [
+      {
+        node: "greeting",
+        step: 0,
+        cause: "The bot asked for the date of birth twice.",
+        suggestion: "Explain why it's needed in the first ask.",
+      },
+    ],
+    error: null,
+  },
   transcript: [
     { speaker: "bot", node: "greeting", text: "Hi, who's calling?", at_ms: 300 },
     { speaker: "caller", node: "greeting", text: "Ana.", at_ms: 1200 },
@@ -71,8 +84,8 @@ const detail: CallDetail = {
   events: [],
 };
 
-/** A fake calls API; `calls` answers the list, filtered by any `outcome` params. */
-function stubApi(calls: CallSummary[] | "fail") {
+/** A fake calls API: `calls` answers the list (filtered by any `outcome` params), `details` each call. */
+function stubApi(calls: CallSummary[] | "fail", details: CallDetail[] = [detail]) {
   const fetchMock = vi.fn((url: string) => {
     const { pathname, searchParams } = new URL(url, "http://localhost");
     if (calls === "fail") {
@@ -84,7 +97,8 @@ function stubApi(calls: CallSummary[] | "fail") {
         Response.json(outcomes.length ? calls.filter((c) => outcomes.includes(c.outcome)) : calls),
       );
     }
-    if (pathname === "/api/agents/desk/calls/c-done") return Promise.resolve(Response.json(detail));
+    const one = details.find((d) => pathname === `/api/agents/desk/calls/${d.id}`);
+    if (one) return Promise.resolve(Response.json(one));
     return Promise.resolve(Response.json({ detail: "Not found" }, { status: 404 }));
   });
   vi.stubGlobal("fetch", fetchMock);
@@ -162,6 +176,15 @@ describe("CallLogPane", () => {
     expect(steps[0]?.textContent).toContain("Long stay");
     expect(steps[1]?.textContent).toContain("Call completed");
     expect(screen.queryByText("Worth a look")).toBeNull(); // a long stay isn't a failure
+
+    // The AI analysis comes before the path.
+    const analysis = screen.getByRole("heading", { name: "AI analysis" });
+    const pathHeading = screen.getByRole("heading", { name: "Path" });
+    expect(
+      analysis.compareDocumentPosition(pathHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByText("The caller hesitated over their date of birth.")).toBeTruthy();
+    expect(screen.getByText("Explain why it's needed in the first ask.")).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Transcript" })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "View transcript (3 messages)" }));
@@ -184,6 +207,29 @@ describe("CallLogPane", () => {
     ).findAllByRole("listitem")) as [HTMLElement, HTMLElement];
     expect(first.textContent).toContain("Stuck in greeting"); // errored there
     expect(second.textContent).not.toContain("Stuck"); // completed: just a long stay
+  });
+
+  it("says the analysis is on its way while it's pending", async () => {
+    const pending: CallDetail = {
+      ...detail,
+      analysis: { status: "pending", summary: null, findings: [], error: null },
+    };
+    stubApi([finished], [pending]);
+    const user = renderPane();
+    await user.click(
+      within(await screen.findByRole("list", { name: "Calls" })).getByRole("button"),
+    );
+    expect(await screen.findByText("Analyzing this call…")).toBeTruthy();
+  });
+
+  it("has no analysis section for a call without issues", async () => {
+    stubApi([finished], [{ ...detail, issues: [], analysis: null }]);
+    const user = renderPane();
+    await user.click(
+      within(await screen.findByRole("list", { name: "Calls" })).getByRole("button"),
+    );
+    await screen.findByRole("list", { name: "Path through the agent" });
+    expect(screen.queryByRole("heading", { name: "AI analysis" })).toBeNull();
   });
 
   it("says when there are no calls", async () => {

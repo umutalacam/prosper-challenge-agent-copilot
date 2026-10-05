@@ -1,44 +1,97 @@
 #
 # CallRecordService — stored voice calls. The voice bot saves each call when it
-# ends, with the issues CallAnalyzer finds in it; the routes (api/calls/routes.py)
-# read them back, shaped by to_summary / to_response.
+# ends (``save``): the call is stored with the issues CallAnalyzer finds in it,
+# then CopilotAnalyzer explains them (a call with issues is stored with a pending
+# analysis, set to done or failed when the model answers). The routes
+# (api/calls/routes.py) read them back, shaped by to_summary / to_response.
 #
 
+import asyncio
 from collections.abc import Collection
-from dataclasses import asdict
+from dataclasses import asdict, replace
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from loguru import logger
 
 from api.agents.repository import AgentNotFound
 from api.agents.service import AgentService
+from api.calls.copilot_analyzer import CopilotAnalyzer
 from api.calls.analyzer import CallAnalyzer
-from api.calls.repository import CallNotFound, CallRecord, CallRepository, CallSummary, Outcome
+from api.calls.repository import CallAnalysis, CallNotFound, CallRecord, CallRepository, CallSummary, Outcome
 
 
 class CallRecordService:
-    def __init__(self, repository: CallRepository, agents: AgentService, analyzer: CallAnalyzer) -> None:
+    # A pending analysis older than this never finished (the server restarted mid-way): reported as failed.
+    ANALYSIS_TIMEOUT = timedelta(minutes=2)
+
+    def __init__(
+        self,
+        repository: CallRepository,
+        agents: AgentService,
+        analyzer: CallAnalyzer,
+        copilot_analyzer: CopilotAnalyzer,
+    ) -> None:
         """:param repository: Where calls are stored.
-        :param agents: Used to check that a call's agent exists.
+        :param agents: Used to check that a call's agent exists, and to read the version a call ran.
         :param analyzer: Judges each call: its steps and issues.
+        :param copilot_analyzer: Explains a call's issues with a model.
         """
         self._repository = repository
         self._agents = agents
         self._analyzer = analyzer
+        self._copilot_analyzer = copilot_analyzer
 
-    def save(self, record: CallRecord) -> None:
-        """Store a finished call with its issues. A call whose agent was deleted while it ran isn't
-        stored: deleting an agent deletes its calls, this one included.
+    async def save(self, record: CallRecord) -> None:
+        """Store a finished call, then have its issues analyzed (if it has any). The
+        database work runs off the event loop; the analysis waits for the model, so
+        await it after the caller has hung up.
 
         :param record: The finished call.
+        """
+        if await asyncio.to_thread(self._store, record):
+            await self._analyze(record)
+
+    def _store(self, record: CallRecord) -> bool:
+        """Store a finished call with its issues, and a pending analysis if it has any. A
+        call whose agent was deleted while it ran isn't stored: deleting an agent deletes
+        its calls, this one included.
+
+        :param record: The finished call.
+        :return: Whether it was stored.
         """
         try:
             self._agents.get(record.agent_id)
         except AgentNotFound:
             logger.warning(f"Call {record.id} not saved: agent '{record.agent_id}' was deleted during the call")
+            return False
+        issues = self._analyzer.issues(record)
+        if issues:
+            record = replace(record, analysis=CallAnalysis.pending())
+        self._repository.save(record, issues)
+        logger.info(f"Saved call {record.id} ({record.outcome}, {len(issues)} issues)")
+        return True
+
+    async def _analyze(self, record: CallRecord) -> None:
+        """Have the model explain a stored call's issues and store the analysis: ``done``,
+        or ``failed`` with the reason. Nothing to do for a call without issues. Never
+        raises: the call is stored either way.
+
+        :param record: The call, as ``_store`` stored it.
+        """
+        issues = self._analyzer.issues(record)
+        if not issues:
             return
-        self._repository.save(record, self._analyzer.issues(record))
-        logger.info(f"Saved call {record.id} ({record.outcome})")
+        try:
+            agent = await asyncio.to_thread(self._agents.get_version, record.agent_id, record.agent_version)
+            analysis = await self._copilot_analyzer.analyze(record, agent.body, issues, self._analyzer.steps(record))
+        except Exception as error:
+            logger.exception(f"Couldn't analyze call {record.id}")
+            analysis = CallAnalysis.failed(f"{type(error).__name__}: {error}")
+        try:
+            await asyncio.to_thread(self._repository.set_analysis, record.id, analysis)
+        except Exception:
+            logger.exception(f"Couldn't store the analysis of call {record.id}")
 
     def list(
         self, agent_id: str, limit: int = 50, outcomes: Collection[Outcome] | None = None
@@ -91,7 +144,7 @@ class CallRecordService:
         """One call in full, as the API returns it.
 
         :param call: The call from ``get``.
-        :return: Its JSON-ready fields, with its issues, steps, transcript and timeline.
+        :return: Its JSON-ready fields, with its issues, steps, analysis, transcript and timeline.
         """
         return {
             "id": call.id,
@@ -106,7 +159,27 @@ class CallRecordService:
             "path": call.path,
             "issues": [asdict(issue) for issue in self._analyzer.issues(call)],
             "steps": self._analyzer.steps(call),
+            "analysis": self._analysis_response(call.analysis),
             "transcript": call.transcript,
             "final_state": call.final_state,
             "events": call.events,
+        }
+
+    @staticmethod
+    def _analysis_response(analysis: CallAnalysis | None) -> dict[str, Any] | None:
+        """A call's analysis, as the API returns it.
+
+        :param analysis: The stored analysis; None for a call without issues.
+        :return: Its JSON-ready fields; a pending one past ``ANALYSIS_TIMEOUT`` reads as failed.
+        """
+        if analysis is None:
+            return None
+        stale = datetime.now(UTC) - analysis.updated_at > CallRecordService.ANALYSIS_TIMEOUT
+        if analysis.status == "pending" and stale:
+            analysis = CallAnalysis.failed("The analysis timed out.")
+        return {
+            "status": analysis.status,
+            "summary": analysis.summary,
+            "findings": analysis.findings,
+            "error": analysis.error,
         }

@@ -76,3 +76,17 @@ CREATE TABLE IF NOT EXISTS call_issues (
 
 CREATE INDEX IF NOT EXISTS call_issues_by_call ON call_issues (call_id);
 CREATE INDEX IF NOT EXISTS call_issues_by_agent ON call_issues (agent_id, agent_version, kind, node);
+
+-- The AI analysis of a call with issues (api/calls/copilot_analyzer.py): why it went wrong
+-- and what to change in the agent. Written `pending` with the call, then set once
+-- to `done` (summary + findings) or `failed` (error) when the model answers.
+-- `findings` is a JSON array of {node, step, cause, suggestion}.
+CREATE TABLE IF NOT EXISTS call_analyses (
+    call_id     TEXT PRIMARY KEY REFERENCES calls (id) ON DELETE CASCADE,
+    status      TEXT NOT NULL CHECK (status IN ('pending', 'done', 'failed')),
+    summary     TEXT,
+    findings    TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(findings)),
+    error       TEXT,
+    model       TEXT,
+    updated_at  TEXT NOT NULL
+) STRICT;

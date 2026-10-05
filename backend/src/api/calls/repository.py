@@ -2,7 +2,8 @@
 # CallRepository — stored voice calls (SQLite, the `calls` table in
 # config/schema.sql, in the same database as the agents). A call is written once,
 # when it ends, together with its issues (`call_issues`, for counting failures
-# across calls); rows are never updated.
+# across calls) and, if it has any, a pending AI analysis (`call_analyses`). Call
+# rows are never updated; only the analysis is, once, when the model answers.
 #
 
 from __future__ import annotations
@@ -11,8 +12,8 @@ import json
 import sqlite3
 from collections.abc import Collection, Iterator
 from contextlib import contextmanager
-from dataclasses import asdict, dataclass
-from datetime import datetime
+from dataclasses import asdict, dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
@@ -29,9 +30,9 @@ IssueKind = Literal["stuck", "long_stay", "error"]
 
 @dataclass(frozen=True)
 class CallIssue:
-    """Something worth a look in a call, as CallAnalyzer judged it. ``stuck``: the bot improvised in the node the
-    call ended in, unfinished (a failure); ``long_stay``: it improvised in a node but
-    the call moved on (a note); ``error``: the pipeline raised."""
+    """Something worth a look in a call, as CallAnalyzer judged it. ``stuck``: the bot
+    improvised in the node the call ended in, unfinished (a failure); ``long_stay``: it
+    improvised in a node but the call moved on (a note); ``error``: the pipeline raised."""
 
     kind: IssueKind
     node: str | None  # where it happened; None for an error before the flow started
@@ -39,6 +40,36 @@ class CallIssue:
     at_ms: int
     replies: int | None = None  # stuck / long_stay: the bot reply that tipped it
     message: str | None = None  # error: what the pipeline raised
+
+
+# Where a call's AI analysis is: ``pending`` while the model works, then ``done`` or
+# ``failed`` for good.
+AnalysisStatus = Literal["pending", "done", "failed"]
+
+
+@dataclass(frozen=True)
+class CallAnalysis:
+    """The AI analysis of a call with issues (CopilotAnalyzer): why it went wrong and what
+    to change in the agent."""
+
+    status: AnalysisStatus
+    updated_at: datetime
+    summary: str | None = None  # done: what went wrong, in a few sentences
+    findings: list[dict[str, Any]] = field(default_factory=list)  # done: {node, step, cause, suggestion}
+    error: str | None = None  # failed: why there's no analysis
+    model: str | None = None  # the model that wrote it
+
+    @staticmethod
+    def pending() -> CallAnalysis:
+        """:return: An analysis that hasn't been written yet, as of now."""
+        return CallAnalysis(status="pending", updated_at=datetime.now(UTC))
+
+    @staticmethod
+    def failed(error: str) -> CallAnalysis:
+        """:param error: Why the analysis couldn't be written.
+        :return: A failed analysis, as of now.
+        """
+        return CallAnalysis(status="failed", updated_at=datetime.now(UTC), error=error)
 
 
 @dataclass(frozen=True)
@@ -54,6 +85,7 @@ class CallRecord:
     path: list[str]
     final_state: dict[str, Any]
     events: list[Event]
+    analysis: CallAnalysis | None = None  # only for calls with issues
 
     @property
     def duration_ms(self) -> int:
@@ -118,7 +150,7 @@ class CallRepository:
             conn.executescript(SCHEMA_SQL.read_text())
 
     def save(self, record: CallRecord, issues: list[CallIssue]) -> None:
-        """Store a finished call, with its issues.
+        """Store a finished call, with its issues and its analysis (if it has one).
 
         :param record: The call; its id must be new.
         :param issues: What went wrong in it (CallAnalyzer.issues).
@@ -143,6 +175,17 @@ class CallRepository:
                 ),
             )
             CallRepository._insert_issues(conn, record, issues)
+            if record.analysis is not None:
+                CallRepository._upsert_analysis(conn, record.id, record.analysis)
+
+    def set_analysis(self, call_id: str, analysis: CallAnalysis) -> None:
+        """Store a call's analysis, replacing the one it had (e.g. pending → done).
+
+        :param call_id: The stored call.
+        :param analysis: Its analysis.
+        """
+        with self._transaction() as conn:
+            CallRepository._upsert_analysis(conn, call_id, analysis)
 
     def list_for_agent(
         self, agent_id: str, limit: int = 50, outcomes: Collection[Outcome] | None = None
@@ -187,13 +230,28 @@ class CallRepository:
         """One stored call in full.
 
         :param call_id: The call's id.
-        :return: The call, with its timeline and final state.
+        :return: The call, with its timeline, final state and analysis.
         :raises CallNotFound: If there's no such call.
         """
         with self._connect() as conn:
-            row = conn.execute("SELECT * FROM calls WHERE id = ?", (call_id,)).fetchone()
+            row = conn.execute(
+                "SELECT calls.*, a.status AS a_status, a.summary AS a_summary, a.findings AS a_findings,"
+                " a.error AS a_error, a.model AS a_model, a.updated_at AS a_updated_at"
+                " FROM calls LEFT JOIN call_analyses AS a ON a.call_id = calls.id WHERE calls.id = ?",
+                (call_id,),
+            ).fetchone()
         if row is None:
             raise CallNotFound(call_id)
+        analysis = None
+        if row["a_status"] is not None:
+            analysis = CallAnalysis(
+                status=row["a_status"],
+                updated_at=datetime.fromisoformat(row["a_updated_at"]),
+                summary=row["a_summary"],
+                findings=json.loads(row["a_findings"]),
+                error=row["a_error"],
+                model=row["a_model"],
+            )
         return CallRecord(
             id=row["id"],
             agent_id=row["agent_id"],
@@ -206,6 +264,27 @@ class CallRepository:
             path=json.loads(row["path"]),
             final_state=json.loads(row["final_state"]),
             events=json.loads(row["events"]),
+            analysis=analysis,
+        )
+
+    @staticmethod
+    def _upsert_analysis(conn: sqlite3.Connection, call_id: str, analysis: CallAnalysis) -> None:
+        """:param conn: An open connection, inside a write transaction.
+        :param call_id: The call the analysis belongs to.
+        :param analysis: The analysis; replaces any the call had.
+        """
+        conn.execute(
+            "INSERT OR REPLACE INTO call_analyses (call_id, status, summary, findings, error, model, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                call_id,
+                analysis.status,
+                analysis.summary,
+                json.dumps(analysis.findings),
+                analysis.error,
+                analysis.model,
+                analysis.updated_at.isoformat(timespec="milliseconds"),
+            ),
         )
 
     @staticmethod

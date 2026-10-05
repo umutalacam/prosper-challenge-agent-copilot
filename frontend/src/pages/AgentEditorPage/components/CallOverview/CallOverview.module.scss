@@ -43,6 +43,9 @@
 }
 
 .heading {
+  display: flex;
+  align-items: center;
+  gap: $space-1;
   color: $color-text-muted;
   font-size: $font-size-xs;
   font-weight: 600;

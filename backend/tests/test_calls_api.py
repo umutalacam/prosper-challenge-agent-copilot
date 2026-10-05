@@ -1,9 +1,10 @@
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi.testclient import TestClient
 
 from api.calls.analyzer import CallAnalyzer
-from api.calls.repository import CallRecord, CallRepository
+from api.calls.repository import CallAnalysis, CallRecord, CallRepository
 from tests.conftest import make_call
 
 
@@ -15,14 +16,16 @@ def seeded_agent(client: TestClient) -> str:
 
 
 def seed(api_db: Path, *records: CallRecord) -> None:
-    """Store calls as the bot would: with the issues the analyzer finds in them.
+    """Store calls as the bot would: with the issues the analyzer finds in them, and a
+    pending analysis if there are any.
 
     :param api_db: The app's database.
     :param records: The calls.
     """
     calls, analyzer = CallRepository(api_db), CallAnalyzer()
     for record in records:
-        calls.save(record, analyzer.issues(record))
+        issues = analyzer.issues(record)
+        calls.save(replace(record, analysis=CallAnalysis.pending()) if issues else record, issues)
 
 
 def test_lists_an_agents_calls_newest_first(client: TestClient, api_db: Path):
@@ -69,6 +72,7 @@ def test_gets_one_call_with_its_transcript_and_timeline(client: TestClient, api_
     assert [e["type"] for e in call["events"]] == ["started", "bot", "stuck", "ended"]
     assert call["final_state"] == {"name": "Ana"}
     assert [i["kind"] for i in call["issues"]] == ["stuck"]
+    assert call["analysis"] == {"status": "pending", "summary": None, "findings": [], "error": None}
     assert call["steps"] == [
         {"node": "n0", "entered_ms": 0, "stay_ms": 1500, "replies": 1, "exit": None, "ending": "abandoned"},
     ]

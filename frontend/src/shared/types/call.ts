@@ -26,6 +26,34 @@ export interface CallIssue {
   message: string | null;
 }
 
+/**
+ * Where a call's AI analysis is: `pending` while the model works (poll), then
+ * `done` or `failed` for good (a pending one that never finished reads as failed).
+ */
+export type CallAnalysisStatus = "pending" | "done" | "failed";
+
+/** The analysis of one issue. */
+export interface CallFinding {
+  node: string | null;
+  /** The issue's index in `CallDetail.steps`. */
+  step: number | null;
+  /** Why it happened. */
+  cause: string;
+  /** A change to the agent that would prevent it; empty if none is needed. */
+  suggestion: string;
+}
+
+/** The AI analysis of a call with issues (backend/src/api/calls/copilot_analyzer.py). */
+export interface CallAnalysis {
+  status: CallAnalysisStatus;
+  /** done: what went wrong, in a few sentences. */
+  summary: string | null;
+  /** done: one per issue. */
+  findings: CallFinding[];
+  /** failed: why there's no analysis. */
+  error: string | null;
+}
+
 /** One stay in a node, in the order the call walked them. */
 export interface PathStep {
   node: string;
@@ -98,6 +126,8 @@ export interface CallDetail extends CallSummary {
   ended_at: string;
   /** The walk through the agent; empty if the flow never started. */
   steps: PathStep[];
+  /** The AI analysis; null for a call without issues. */
+  analysis: CallAnalysis | null;
   transcript: TranscriptTurn[];
   final_state: FlowState;
   events: CallEvent[];

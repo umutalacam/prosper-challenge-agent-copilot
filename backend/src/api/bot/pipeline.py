@@ -6,7 +6,6 @@
 #   agent JSON  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
 #
 
-import asyncio
 import os
 
 from loguru import logger
@@ -158,14 +157,15 @@ async def run_bot(
 
 
 async def _save(call_records: CallRecordService, call_log: CallLog) -> None:
-    """Store the finished call, off the event loop. Never raises: a storage failure
-    must not break hanging up.
+    """Store the finished call (CallRecordService also has its issues analyzed; the
+    caller has hung up, so nobody waits). Never raises: a storage failure must not
+    break hanging up.
 
     :param call_records: Where calls are stored.
     :param call_log: The finished call's log, holding its record.
     """
     try:
-        await asyncio.to_thread(call_records.save, call_log.record())
+        await call_records.save(call_log.record())
     except Exception:
         logger.exception(f"Couldn't save call {call_log.id}")
 

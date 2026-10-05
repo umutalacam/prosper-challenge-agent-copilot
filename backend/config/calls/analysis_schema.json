@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "properties": {
+    "reason": { "type": "string", "description": "One sentence: the main thing that went wrong" },
+    "summary": {
+      "type": "string",
+      "description": "Two or three plain sentences for the agent's builder: what happened in the call and why"
+    },
+    "findings": {
+      "type": "array",
+      "description": "One per issue, in the order given",
+      "items": {
+        "type": "object",
+        "properties": {
+          "node": { "type": ["string", "null"], "description": "The issue's node, as given" },
+          "step": { "type": ["integer", "null"], "description": "The issue's step, as given" },
+          "cause": {
+            "type": "string",
+            "description": "Why it happened, pointing at what the caller said and what the node asks for"
+          },
+          "suggestion": {
+            "type": "string",
+            "description": "One concrete change to the agent that would prevent it; empty if none is needed"
+          }
+        },
+        "required": ["node", "step", "cause", "suggestion"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["reason", "summary", "findings"],
+  "additionalProperties": false
+}

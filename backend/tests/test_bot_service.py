@@ -7,7 +7,7 @@ from api.bot.service import BotService, NothingDeployed
 from api.calls.repository import CallRepository
 from api.calls.analyzer import CallAnalyzer
 from api.calls.service import CallRecordService
-from tests.conftest import make_agent
+from tests.conftest import make_agent, make_copilot_analyzer
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def call_records(repository: AgentRepository, agents: AgentService) -> CallRecor
     :param agents: The agent service.
     :return: The call record service.
     """
-    return CallRecordService(CallRepository(repository.path), agents, CallAnalyzer())
+    return CallRecordService(CallRepository(repository.path), agents, CallAnalyzer(), make_copilot_analyzer())
 
 
 @pytest.fixture

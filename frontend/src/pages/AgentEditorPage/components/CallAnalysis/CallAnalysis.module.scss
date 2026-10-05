@@ -1,0 +1,69 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.analysis {
+  @include m.stack($space-2);
+  font-size: $font-size-sm;
+}
+
+.summary {
+  margin: 0;
+}
+
+.findings {
+  @include m.stack($space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// One issue: a card with the brand rail on its left, like the path's markers.
+.finding {
+  @include m.stack($space-1);
+  padding: $space-2 $space-3;
+  border-left: 2px solid $color-brand;
+  border-radius: $radius-sm;
+  background: $color-surface-sunken;
+
+  p {
+    margin: 0;
+  }
+}
+
+.node {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  font-weight: 600;
+}
+
+.suggestion {
+  color: $color-text;
+}
+
+.label {
+  color: $color-accent;
+  font-weight: 600;
+}
+
+.muted {
+  margin: 0;
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.pending {
+  margin: 0;
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+  animation: breathe 1.6s ease-in-out infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.45;
+  }
+}

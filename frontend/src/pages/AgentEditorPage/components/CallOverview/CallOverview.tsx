@@ -1,9 +1,10 @@
 import { useId } from "react";
 import type { CallDetail } from "@/shared/types/call";
-import { Badge, ClockIcon } from "@/shared/ui";
+import { Badge, ClockIcon, SparklesIcon } from "@/shared/ui";
 import { callerName } from "../../lib/callerName";
 import { OUTCOMES } from "../../lib/callOutcomes";
 import { formatDuration, formatRelative } from "../../lib/time";
+import { CallAnalysis } from "../CallAnalysis/CallAnalysis";
 import { CallAvatar } from "../CallAvatar/CallAvatar";
 import { CallPath } from "../CallPath/CallPath";
 import styles from "./CallOverview.module.scss";
@@ -15,8 +16,8 @@ export interface CallOverviewProps {
 }
 
 /**
- * How a call went at a glance: who, outcome, length, the path through the agent,
- * and anything worth a look. (CallDetail puts the transcript button under it.)
+ * How a call went at a glance: who, outcome, length, the AI analysis (calls with
+ * issues), the path through the agent, and anything worth a look. (CallDetail puts the transcript button under it.)
  */
 export function CallOverview({ call, now }: CallOverviewProps) {
   const outcome = OUTCOMES[call.outcome];
@@ -44,6 +45,16 @@ export function CallOverview({ call, now }: CallOverviewProps) {
           </span>
         </div>
       </header>
+
+      {call.analysis && (
+        <section className={styles.section} aria-labelledby={`${id}-analysis`}>
+          <h3 id={`${id}-analysis`} className={styles.heading}>
+            <SparklesIcon width={11} height={11} />
+            AI analysis
+          </h3>
+          <CallAnalysis analysis={call.analysis} />
+        </section>
+      )}
 
       <section className={styles.section} aria-labelledby={`${id}-path`}>
         <h3 id={`${id}-path`} className={styles.heading}>
