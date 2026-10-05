@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { errorMessage, useCall } from "@/shared/api";
+import type { CopilotFix } from "@/shared/types/copilot";
 import { ArrowLeftIcon, Button, ChatIcon } from "@/shared/ui";
 import { CallOverview } from "../CallOverview/CallOverview";
 import { CallTranscript } from "../CallTranscript/CallTranscript";
@@ -12,13 +13,17 @@ export interface CallDetailProps {
   now: Date;
   /** Back to the list. */
   onBack: () => void;
+  /** Hand an analysis finding to the copilot ("Fix with copilot"). */
+  onFix?: (fix: CopilotFix) => void;
+  /** The copilot is busy with another turn. */
+  fixDisabled?: boolean;
 }
 
 /**
  * One call: its overview first, with the transcript button pinned to the bottom
  * of the pane; then the transcript. Back steps out one level.
  */
-export function CallDetail({ agentId, callId, now, onBack }: CallDetailProps) {
+export function CallDetail({ agentId, callId, now, onBack, onFix, fixDisabled }: CallDetailProps) {
   const call = useCall(agentId, callId);
   const [view, setView] = useState<"overview" | "transcript">("overview");
   const inTranscript = view === "transcript";
@@ -48,7 +53,7 @@ export function CallDetail({ agentId, callId, now, onBack }: CallDetailProps) {
         ) : inTranscript ? (
           <CallTranscript turns={call.data.transcript} />
         ) : (
-          <CallOverview call={call.data} now={now} />
+          <CallOverview call={call.data} now={now} onFix={onFix} fixDisabled={fixDisabled} />
         )}
       </div>
       {call.isSuccess && !inTranscript && (

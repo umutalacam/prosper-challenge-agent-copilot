@@ -1,11 +1,13 @@
-import type { CopilotEvent, CopilotMessage } from "@/shared/types/copilot";
+import type { CopilotEvent, CopilotFix, CopilotMessage } from "@/shared/types/copilot";
 import { apiFetch } from "./http";
 
 export interface CopilotTurnInput {
   /** The editor's working copy, without server metadata. */
   agent: object;
-  /** The conversation so far, ending with the new prompt. */
+  /** The conversation so far, ending with the new prompt (for a fix, the finding as text). */
   messages: CopilotMessage[];
+  /** A fix turn: the call-analysis finding to fix. */
+  fix?: CopilotFix;
 }
 
 /** Split streamed NDJSON text into complete events; `rest` is a partial last line. */

@@ -146,6 +146,34 @@ $pane-top: $float-gap + $menu-button-size + $space-2;
   white-space: pre-wrap;
 }
 
+// A fix turn's prompt: the call finding, as a card tinted like the prompt bubble.
+.fixCard {
+  @include m.stack($space-1);
+  padding: $space-2 $space-3;
+  border-radius: $radius-md;
+  background: $color-brand-soft;
+  font-size: $font-size-sm;
+
+  p {
+    margin: 0;
+  }
+}
+
+.fixHeader {
+  @include m.cluster($space-1);
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+  font-weight: 600;
+}
+
+.fixSource {
+  font-weight: 400;
+}
+
+.fixNode {
+  font-family: $font-family-mono;
+}
+
 .steps {
   @include m.stack($space-1);
   margin: 0;

@@ -78,6 +78,30 @@ describe("useCopilot", () => {
     expect(sent.messages).toEqual([{ role: "user", content: "Make it a dental desk" }]);
   });
 
+  it("starts a fix turn: sends the finding and keeps it on the turn", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(streamResponse([{ type: "reply", text: "Fixed." }, { type: "done" }])),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useCopilot({ getAgent: () => agent, onAgent: vi.fn() }));
+    const finding = {
+      call_id: "c1",
+      node: "greeting",
+      step: 0,
+      cause: "No action for insurance questions.",
+      suggestion: "Add one.",
+    };
+
+    await act(() => result.current.fix(finding));
+
+    // Only a label: the finding goes once, as `fix`, and the backend words it for the model.
+    const prompt = 'Fix the problem a call ran into in "greeting".';
+    expect(result.current.turns[0]).toMatchObject({ prompt, fix: finding, reply: "Fixed." });
+    const sent = JSON.parse(requestBody(fetchMock, 0)) as { messages: unknown[]; fix: unknown };
+    expect(sent.fix).toEqual(finding);
+    expect(sent.messages).toEqual([{ role: "user", content: prompt }]);
+  });
+
   it("sends earlier turns, questions included, as history", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve(

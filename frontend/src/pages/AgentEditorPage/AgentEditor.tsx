@@ -257,6 +257,12 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
             onClose={() => {
               setCallsOpen(false);
             }}
+            onFix={(fix) => {
+              // Show the fix card; the Call Log stays open (read-only while the copilot edits).
+              setCopilotOpen(true);
+              void copilot.fix(fix);
+            }}
+            fixDisabled={copilot.running}
           />
         )}
 

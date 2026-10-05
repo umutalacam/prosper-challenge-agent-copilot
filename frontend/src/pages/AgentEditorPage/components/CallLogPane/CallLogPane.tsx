@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { errorMessage, useAgentCalls } from "@/shared/api";
 import type { CallOutcome } from "@/shared/types/call";
+import type { CopilotFix } from "@/shared/types/copilot";
 import { CloseIcon, EmptyState, IconButton, PhoneIcon } from "@/shared/ui";
 import { useNow } from "../../hooks/useNow";
 import { OUTCOMES } from "../../lib/callOutcomes";
@@ -15,6 +16,10 @@ const CLOCK_TICK_MS = 30_000;
 export interface CallLogPaneProps {
   agentId: string;
   onClose: () => void;
+  /** Hand an analysis finding to the copilot ("Fix with copilot"). */
+  onFix?: (fix: CopilotFix) => void;
+  /** The copilot is busy with another turn. */
+  fixDisabled?: boolean;
 }
 
 /**
@@ -22,7 +27,7 @@ export interface CallLogPaneProps {
  * first, filtered by outcome; a call opens to its transcript. Read-only, so it
  * stays usable while the copilot edits.
  */
-export function CallLogPane({ agentId, onClose }: CallLogPaneProps) {
+export function CallLogPane({ agentId, onClose, onFix, fixDisabled }: CallLogPaneProps) {
   const [outcome, setOutcome] = useState<CallOutcome | null>(null);
   const [openCallId, setOpenCallId] = useState<string | null>(null);
   const now = useNow(CLOCK_TICK_MS);
@@ -49,6 +54,8 @@ export function CallLogPane({ agentId, onClose }: CallLogPaneProps) {
             onBack={() => {
               setOpenCallId(null);
             }}
+            onFix={onFix}
+            fixDisabled={fixDisabled}
           />
         ) : (
           <div className={styles.scroll}>

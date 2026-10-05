@@ -10,6 +10,7 @@ from api.copilot.model import CopilotError, CopilotModel
 from api.copilot.nodes import (
     ExecutorNode,
     ExplainerNode,
+    FixNode,
     PlannerNode,
     ResolveIntentNode,
     ReviewerNode,
@@ -218,3 +219,34 @@ def test_nodes_run_concurrently_without_sharing_state():
 async def _drain(node, t):
     async for _ in node.run(t):
         pass
+
+
+# ---- fix: a finding from a call's AI analysis starts the turn -----------------
+
+FINDING = {
+    "call_id": "c1",
+    "node": "greeting",
+    "step": 0,
+    "cause": "The caller asked about insurance; greeting has no action for it.",
+    "suggestion": "Add an action for insurance questions.",
+}
+
+
+def test_fix_turns_the_finding_into_a_build_goal_without_a_model_call():
+    node, model = make(FixNode)
+    t = turn(fix=FINDING)
+    events = run_node(node, t)
+    assert t.intent == "build"
+    assert t.goal == (
+        "Fix a problem a real call ran into in node 'greeting': The caller asked about insurance;"
+        " greeting has no action for it. Suggested fix: Add an action for insurance questions."
+    )
+    assert events == [{"type": "activity", "text": "Reading the finding…"}]  # the card shows the finding
+    assert model.requests == []
+    assert node.next(t) == "planner"
+
+
+def test_fix_goal_without_a_node_or_suggestion():
+    assert FixNode.goal_of({"node": None, "cause": "The call failed.", "suggestion": ""}) == (
+        "Fix a problem a real call ran into: The call failed."
+    )

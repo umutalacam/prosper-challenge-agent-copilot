@@ -2,8 +2,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CallDetail, CallIssue, CallSummary } from "@/shared/types/call";
-import { CallLogPane } from "./CallLogPane";
+import type { CallDetail, CallFinding, CallIssue, CallSummary } from "@/shared/types/call";
+import { CallLogPane, type CallLogPaneProps } from "./CallLogPane";
 
 const stuckIn = (node: string, kind: CallIssue["kind"] = "stuck"): CallIssue => ({
   kind,
@@ -105,11 +105,11 @@ function stubApi(calls: CallSummary[] | "fail", details: CallDetail[] = [detail]
   return fetchMock;
 }
 
-function renderPane() {
+function renderPane(props: Partial<CallLogPaneProps> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <CallLogPane agentId="desk" onClose={vi.fn()} />
+      <CallLogPane agentId="desk" onClose={vi.fn()} {...props} />
     </QueryClientProvider>,
   );
   return userEvent.setup();
@@ -220,6 +220,36 @@ describe("CallLogPane", () => {
       within(await screen.findByRole("list", { name: "Calls" })).getByRole("button"),
     );
     expect(await screen.findByText("Analyzing this call…")).toBeTruthy();
+  });
+
+  it("hands a finding to the copilot, unless it has nothing to change", async () => {
+    const [finding] = detail.analysis!.findings as [CallFinding];
+    const nothingToDo = { ...finding, node: "confirm", suggestion: "" };
+    const withTwo: CallDetail = {
+      ...detail,
+      analysis: { ...detail.analysis!, findings: [finding, nothingToDo] },
+    };
+    stubApi([finished], [withTwo]);
+    const onFix = vi.fn();
+    const user = renderPane({ onFix });
+    await user.click(
+      within(await screen.findByRole("list", { name: "Calls" })).getByRole("button"),
+    );
+
+    const buttons = await screen.findAllByRole("button", { name: "Fix with copilot" });
+    expect(buttons).toHaveLength(1); // the second finding needs no change
+    await user.click(buttons[0]!);
+    expect(onFix).toHaveBeenCalledWith({ call_id: "c-done", ...finding });
+  });
+
+  it("disables the fix button while the copilot is busy", async () => {
+    stubApi([finished]);
+    const user = renderPane({ onFix: vi.fn(), fixDisabled: true });
+    await user.click(
+      within(await screen.findByRole("list", { name: "Calls" })).getByRole("button"),
+    );
+    const button = await screen.findByRole("button", { name: "Fix with copilot" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("has no analysis section for a call without issues", async () => {

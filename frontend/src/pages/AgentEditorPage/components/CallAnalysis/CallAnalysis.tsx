@@ -1,15 +1,20 @@
-import type { CallAnalysis as Analysis } from "@/shared/types/call";
+import type { CallAnalysis as Analysis, CallFinding } from "@/shared/types/call";
+import { Button, FixIcon } from "@/shared/ui";
 import styles from "./CallAnalysis.module.scss";
 
 export interface CallAnalysisProps {
   analysis: Analysis;
+  /** Hand a finding to the copilot; without it there's no fix button. */
+  onFix?: (finding: CallFinding) => void;
+  /** The copilot is busy with another turn. */
+  fixDisabled?: boolean;
 }
 
 /**
  * The AI's take on a call with issues: what went wrong, and per issue why and
  * what to change in the agent. Written after the call, so it may still be pending.
  */
-export function CallAnalysis({ analysis }: CallAnalysisProps) {
+export function CallAnalysis({ analysis, onFix, fixDisabled = false }: CallAnalysisProps) {
   if (analysis.status === "pending") {
     return (
       <p className={styles.pending} aria-live="polite">
@@ -37,6 +42,21 @@ export function CallAnalysis({ analysis }: CallAnalysisProps) {
                 <p className={styles.suggestion}>
                   <span className={styles.label}>Try:</span> {finding.suggestion}
                 </p>
+              )}
+              {/* No suggestion: the analysis found nothing to change here. */}
+              {onFix && finding.suggestion && (
+                <Button
+                  size="sm"
+                  className={styles.fix}
+                  disabled={fixDisabled}
+                  title={fixDisabled ? "The copilot is busy" : undefined}
+                  onClick={() => {
+                    onFix(finding);
+                  }}
+                >
+                  <FixIcon width={12} height={12} />
+                  Fix with copilot
+                </Button>
               )}
             </li>
           ))}

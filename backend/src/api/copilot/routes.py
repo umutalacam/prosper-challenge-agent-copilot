@@ -26,11 +26,23 @@ class CopilotMessage(BaseModel):
     content: str
 
 
+class CopilotFix(BaseModel):
+    """A finding of a call's AI analysis to fix ("Fix with copilot")."""
+
+    call_id: str
+    node: str | None
+    step: int | None
+    cause: str
+    suggestion: str
+
+
 class CopilotTurnRequest(BaseModel):
     agent: dict[str, Any]
     """The editor's working copy (unsaved edits included)."""
     messages: list[CopilotMessage] = Field(min_length=1)
-    """The conversation so far, ending with the user's new prompt."""
+    """The conversation so far, ending with the user's new prompt (for a fix, the finding as text)."""
+    fix: CopilotFix | None = None
+    """A fix turn: the finding to fix; the turn starts at the fix node."""
 
 
 @router.post("/turns")
@@ -40,7 +52,8 @@ async def run_turn(request: CopilotTurnRequest, copilot: Copilot) -> StreamingRe
 
     async def lines() -> AsyncIterator[str]:
         messages = [message.model_dump() for message in request.messages]
-        async for event in copilot.run_turn(request.agent, messages):
+        fix = request.fix.model_dump() if request.fix else None
+        async for event in copilot.run_turn(request.agent, messages, fix):
             yield json.dumps(event) + "\n"
 
     return StreamingResponse(lines(), media_type="application/x-ndjson")

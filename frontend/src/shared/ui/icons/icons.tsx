@@ -18,6 +18,7 @@ import {
   Stars,
   StopFill,
   Telephone,
+  Wrench,
   XLg,
   type IconProps as BootstrapIconProps,
 } from "react-bootstrap-icons";
@@ -61,3 +62,5 @@ export const ChatIcon = appIcon(ChatDots, "ChatIcon");
 export const CheckIcon = appIcon(CheckLg, "CheckIcon");
 /** Clock: a duration. */
 export const ClockIcon = appIcon(Clock, "ClockIcon");
+/** Wrench: fix something (with the copilot). */
+export const FixIcon = appIcon(Wrench, "FixIcon");

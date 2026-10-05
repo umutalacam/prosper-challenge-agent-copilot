@@ -1,5 +1,6 @@
 import { useId } from "react";
 import type { CallDetail } from "@/shared/types/call";
+import type { CopilotFix } from "@/shared/types/copilot";
 import { Badge, ClockIcon, SparklesIcon } from "@/shared/ui";
 import { callerName } from "../../lib/callerName";
 import { OUTCOMES } from "../../lib/callOutcomes";
@@ -13,13 +14,17 @@ export interface CallOverviewProps {
   call: CallDetail;
   /** The clock relative times are told against. */
   now: Date;
+  /** Hand an analysis finding to the copilot ("Fix with copilot"). */
+  onFix?: (fix: CopilotFix) => void;
+  /** The copilot is busy with another turn. */
+  fixDisabled?: boolean;
 }
 
 /**
  * How a call went at a glance: who, outcome, length, the AI analysis (calls with
  * issues), the path through the agent, and anything worth a look. (CallDetail puts the transcript button under it.)
  */
-export function CallOverview({ call, now }: CallOverviewProps) {
+export function CallOverview({ call, now, onFix, fixDisabled }: CallOverviewProps) {
   const outcome = OUTCOMES[call.outcome];
   const stuck = call.issues.find((issue) => issue.kind === "stuck")?.node ?? null;
   const failure = call.issues.find((issue) => issue.kind === "error");
@@ -52,7 +57,16 @@ export function CallOverview({ call, now }: CallOverviewProps) {
             <SparklesIcon width={11} height={11} />
             AI analysis
           </h3>
-          <CallAnalysis analysis={call.analysis} />
+          <CallAnalysis
+            analysis={call.analysis}
+            onFix={
+              onFix &&
+              ((finding) => {
+                onFix({ call_id: call.id, ...finding });
+              })
+            }
+            fixDisabled={fixDisabled}
+          />
         </section>
       )}
 

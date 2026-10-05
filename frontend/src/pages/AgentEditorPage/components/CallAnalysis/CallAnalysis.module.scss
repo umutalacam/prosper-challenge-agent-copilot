@@ -17,12 +17,11 @@
   list-style: none;
 }
 
-// One issue: a card with the brand rail on its left, like the path's markers.
+// One issue: a card on the sunken background.
 .finding {
   @include m.stack($space-1);
   padding: $space-2 $space-3;
-  border-left: 2px solid $color-brand;
-  border-radius: $radius-sm;
+  border-radius: $radius-md;
   background: $color-surface-sunken;
 
   p {
@@ -31,6 +30,7 @@
 }
 
 .node {
+  color: $color-text-muted;
   font-family: $font-family-mono;
   font-size: $font-size-xs;
   font-weight: 600;
@@ -40,8 +40,12 @@
   color: $color-text;
 }
 
+.fix {
+  align-self: flex-start;
+  margin-top: $space-1;
+}
+
 .label {
-  color: $color-accent;
   font-weight: 600;
 }
 

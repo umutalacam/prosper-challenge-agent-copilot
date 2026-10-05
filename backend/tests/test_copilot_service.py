@@ -128,3 +128,30 @@ def test_a_broken_config_file_is_reported(tmp_path: Path):
     events = run(ScriptedModel(), config=config)
     assert events[-2]["type"] == "error"
     assert events[-1] == {"type": "done"}
+
+
+def test_a_fix_starts_at_the_fix_node_and_runs_the_build_loop():
+    finding = {
+        "call_id": "c1",
+        "node": "greeting",
+        "step": 0,
+        "cause": "No way to end.",
+        "suggestion": "Add a bye.",
+    }
+    model = ScriptedModel(*build_responses(review()), reply("Added a goodbye so the call can end."))
+    service = CopilotService(model, "test-model", COPILOT_DIR)
+
+    async def collect():
+        messages = [{"role": "user", "content": "Fix greeting: No way to end."}]
+        return [event async for event in service.run_turn(AGENT, messages, finding)]
+
+    events = asyncio.run(collect())
+    assert [e["text"] for e in events if e["type"] == "activity"] == [
+        "Reading the finding…", "Planning…", "Building…", "Building…", "Building…", "Reviewing…", "Wrapping up…",
+    ]
+    assert not any(e["type"] == "note" and e["text"].startswith("Goal:") for e in events)
+    # No resolve_intent: the first model call is the planner's, and it gets the goal.
+    first = model.requests[0]["messages"]
+    assert "# Your step: plan the change" in first[0]["content"]
+    assert "Suggested fix: Add a bye." in first[-1]["content"]
+    assert events[-2] == {"type": "reply", "text": "Added a goodbye so the call can end."}

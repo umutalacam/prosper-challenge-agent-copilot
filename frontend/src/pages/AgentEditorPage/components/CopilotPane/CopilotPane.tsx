@@ -1,7 +1,9 @@
 import { clsx } from "clsx";
 import { useState, type ReactNode } from "react";
-import { CloseIcon, IconButton, SparklesIcon } from "@/shared/ui";
+import type { CopilotFix } from "@/shared/types/copilot";
+import { CloseIcon, FixIcon, IconButton, SparklesIcon } from "@/shared/ui";
 import type { CopilotTurn } from "../../hooks/useCopilot";
+import { callerName } from "../../lib/callerName";
 import { useStickToBottom } from "../../hooks/useStickToBottom";
 import { CopilotQuestions } from "../CopilotQuestions/CopilotQuestions";
 import { TypedText } from "../TypedText/TypedText";
@@ -61,7 +63,9 @@ export function CopilotPane({ turns, onAnswer, onClose, footer }: CopilotPanePro
                   <ol className={styles.earlier}>
                     {earlier.map((turn) => (
                       <li key={turn.id}>
-                        <p className={styles.earlierPrompt}>{turn.prompt}</p>
+                        <p className={styles.earlierPrompt}>
+                          {turn.fix ? `Fix: ${turn.fix.node ?? "the call"}` : turn.prompt}
+                        </p>
                         {(turn.reply ?? turn.error) && (
                           <p className={styles.earlierReply}>{turn.reply ?? turn.error}</p>
                         )}
@@ -94,7 +98,7 @@ export function CopilotPane({ turns, onAnswer, onClose, footer }: CopilotPanePro
 function Turn({ turn, onAnswer }: { turn: CopilotTurn; onAnswer: (message: string) => void }) {
   return (
     <article className={styles.turn}>
-      <p className={styles.prompt}>{turn.prompt}</p>
+      {turn.fix ? <FixCard fix={turn.fix} /> : <p className={styles.prompt}>{turn.prompt}</p>}
 
       {/* Announced as it changes: what the copilot is doing, then what it did. */}
       <div aria-live="polite">
@@ -145,5 +149,27 @@ function Turn({ turn, onAnswer }: { turn: CopilotTurn; onAnswer: (message: strin
         )}
       </div>
     </article>
+  );
+}
+
+/** A fix turn's "prompt": where the finding is from and the suggested fix (the copilot also gets the cause). */
+function FixCard({ fix }: { fix: CopilotFix }) {
+  return (
+    <div className={styles.fixCard}>
+      <p className={styles.fixHeader}>
+        <FixIcon width={12} height={12} />
+        Fix from a call
+        <span className={styles.fixSource}>
+          {callerName(fix.call_id)}
+          {fix.node && (
+            <>
+              {" · "}
+              <span className={styles.fixNode}>{fix.node}</span>
+            </>
+          )}
+        </span>
+      </p>
+      <p>{fix.suggestion || fix.cause}</p>
+    </div>
   );
 }

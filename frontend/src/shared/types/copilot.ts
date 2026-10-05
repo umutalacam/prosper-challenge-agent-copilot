@@ -5,6 +5,19 @@ export interface CopilotMessage {
   content: string;
 }
 
+/**
+ * A finding of a call's AI analysis to fix ("Fix with copilot"): it starts the
+ * turn at the copilot's fix node instead of a typed prompt.
+ */
+export interface CopilotFix {
+  /** The call the finding is from. */
+  call_id: string;
+  node: string | null;
+  step: number | null;
+  cause: string;
+  suggestion: string;
+}
+
 export interface CopilotQuestion {
   question: string;
   /** Short suggested answers, when the copilot can predict them. */

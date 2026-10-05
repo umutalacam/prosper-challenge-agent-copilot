@@ -21,6 +21,7 @@ export {
   CheckIcon,
   ClockIcon,
   CloseIcon,
+  FixIcon,
   MenuIcon,
   PhoneIcon,
   RobotIcon,

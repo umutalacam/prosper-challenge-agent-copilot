@@ -148,8 +148,9 @@ def test_copilot_streams_ndjson_events(client: TestClient):
     from dependencies import get_copilot_service
 
     class FakeCopilot:
-        async def run_turn(self, agent, messages):
-            yield {"type": "reply", "text": f"Got {messages[-1]['content']} for {agent['name']}"}
+        async def run_turn(self, agent, messages, fix=None):
+            what = f"fix in {fix['node']}" if fix else messages[-1]["content"]
+            yield {"type": "reply", "text": f"Got {what} for {agent['name']}"}
             yield {"type": "done"}
 
     client.app.dependency_overrides[get_copilot_service] = lambda: FakeCopilot()
@@ -160,5 +161,9 @@ def test_copilot_streams_ndjson_events(client: TestClient):
         {"type": "reply", "text": "Got hi for A"},
         {"type": "done"},
     ]
+    fix = {"call_id": "c1", "node": "greeting", "step": 0, "cause": "c", "suggestion": "s"}
+    response = client.post("/api/copilot/turns", json=body | {"fix": fix})
+    assert json.loads(response.text.splitlines()[0]) == {"type": "reply", "text": "Got fix in greeting for A"}
+    assert client.post("/api/copilot/turns", json=body | {"fix": {"node": "greeting"}}).status_code == 422
     body["messages"] = [{"role": "assistant", "content": "hello"}]
     assert client.post("/api/copilot/turns", json=body).status_code == 422

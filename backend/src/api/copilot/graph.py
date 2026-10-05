@@ -3,10 +3,13 @@
 # node, ask it for the next one, until a node returns None. The graph knows nodes
 # only as CopilotNode; which node follows which is each node's own `next`.
 #
+# A turn starts at resolve_intent (a typed prompt) or at fix (a finding from a
+# call's AI analysis, sent with "Fix with copilot").
+#
 #                  ┌── clarify ──▶ (questions, turn ends)
 # resolve_intent ──┼── build ──▶ planner ──▶ executor ──▶ reviewer ──▶ wrap_up
-#                  │                ▲                        │
-#                  │                └──── issues ────────────┘
+#                  │                ▲  ▲                     │
+#                  │      fix ──────┘  └──── issues ─────────┘
 #                  └── explain ──▶ explainer ──▶ wrap_up
 #
 # To add a node: subclass DecisionNode / ToolNode / TextNode in nodes/, add its
@@ -21,6 +24,7 @@ from api.copilot.nodes import (
     CopilotNode,
     ExecutorNode,
     ExplainerNode,
+    FixNode,
     PlannerNode,
     ResolveIntentNode,
     ReviewerNode,
@@ -37,8 +41,9 @@ class CopilotGraph:
         self.nodes = {node.name: node for node in nodes}
         self.start = start
 
-    async def run(self, turn: Turn) -> AsyncIterator[Event]:
-        name: str | None = self.start
+    async def run(self, turn: Turn, start: str | None = None) -> AsyncIterator[Event]:
+        """Run a turn from ``start`` (the graph's own start when None) until a node ends it."""
+        name: str | None = start or self.start
         for _ in range(MAX_NODE_RUNS):
             if name is None:
                 return
@@ -54,6 +59,7 @@ class CopilotGraph:
 def build_graph(model: CopilotModel, prompts: PromptLibrary) -> CopilotGraph:
     nodes: list[CopilotNode] = [
         ResolveIntentNode(model, prompts),
+        FixNode(model, prompts),
         PlannerNode(model, prompts),
         ExecutorNode(model, prompts),
         ReviewerNode(model, prompts),
