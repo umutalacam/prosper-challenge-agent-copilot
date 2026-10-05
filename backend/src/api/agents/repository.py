@@ -132,6 +132,26 @@ class AgentRepository:
             row["id"], json.loads(row["body"]), row["version"], datetime.fromisoformat(row["updated_at"])
         )
 
+    def get_version(self, agent_id: str, version: int) -> AgentRecord:
+        """One saved version of an agent, from its history.
+
+        :param agent_id: The agent's id.
+        :param version: The version to read.
+        :return: The agent as it was saved at that version.
+        :raises AgentNotFound: If there's no such agent or version.
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT agent_id, body, version, created_at FROM agent_versions"
+                " WHERE agent_id = ? AND version = ?",
+                (agent_id, version),
+            ).fetchone()
+        if row is None:
+            raise AgentNotFound(agent_id)
+        return AgentRecord(
+            row["agent_id"], json.loads(row["body"]), row["version"], datetime.fromisoformat(row["created_at"])
+        )
+
     def count(self) -> int:
         """:return: How many agents are stored."""
         with self._connect() as conn:

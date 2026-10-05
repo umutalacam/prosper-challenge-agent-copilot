@@ -21,7 +21,13 @@ const agents = [
 ];
 
 function stubApi() {
-  let bot = { agent_id: "middle", active_calls: 0, client_url: "http://localhost:7860/client/" };
+  let bot = {
+    agent_id: "middle",
+    version: 1,
+    deployed_at: "2026-10-05T09:00:00Z",
+    active_calls: 0,
+    client_url: "http://localhost:7860/client/",
+  };
   const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     if (url === "/api/agents") return Promise.resolve(Response.json(agents));
     if (init?.method === "PUT") {
@@ -70,7 +76,7 @@ describe("AppMenu", () => {
     const menu = screen.getByRole("menu");
     expect(within(menu).getByRole("menuitem", { name: /Back to agents/ })).toBeTruthy();
     const recent = await within(menu).findAllByRole("menuitem", { name: /NEWEST|MIDDLE|OLD/ });
-    expect(recent.map((item) => item.textContent)).toEqual(["NEWEST", "MIDDLERunning", "OLD"]);
+    expect(recent.map((item) => item.textContent)).toEqual(["NEWEST", "MIDDLEDeployed", "OLD"]);
     expect(within(menu).getByRole("menuitem", { name: "OLD" }).getAttribute("aria-current")).toBe(
       "page",
     );

@@ -4,6 +4,7 @@ import pytest
 from loguru import logger
 
 from agent_builder import AgentBuilder
+from api.agents.repository import AgentVersion
 from api.bot.call_log import CallLog
 from api.calls.recorder import CallRecorder
 
@@ -11,13 +12,13 @@ from .conftest import make_agent
 
 
 def call_log(call_id: str | None, config) -> CallLog:
-    """A CallLog with its own recorder, for a call of no saved agent.
+    """A CallLog with its own recorder, for a call of agent ``desk`` v1.
 
     :param call_id: The call's id.
     :param config: The agent the call runs.
     :return: The log.
     """
-    return CallLog(CallRecorder(call_id, config, None))
+    return CallLog(CallRecorder(call_id, config, AgentVersion("desk", 1)))
 
 
 @pytest.fixture

@@ -8,7 +8,8 @@ from fastapi.testclient import TestClient
 from api.agents.repository import AgentRepository
 from api.calls.repository import CallRecord, CallRepository
 from config import SEED_SQL
-from dependencies import get_agent_repository, get_call_repository
+from api.bot.repository import DeploymentRepository
+from dependencies import get_agent_repository, get_call_repository, get_deployment_repository
 from main import create_app
 
 EXAMPLE = Path(__file__).resolve().parent.parent / "example_flow.json"
@@ -43,9 +44,11 @@ def client(api_db: Path):
     """
     test_repository = AgentRepository(api_db, seed=SEED_SQL)
     test_calls = CallRepository(api_db)
+    test_deployments = DeploymentRepository(api_db)
     app = create_app()
     app.dependency_overrides[get_agent_repository] = lambda: test_repository
     app.dependency_overrides[get_call_repository] = lambda: test_calls
+    app.dependency_overrides[get_deployment_repository] = lambda: test_deployments
     with TestClient(app) as client:
         yield client
 
@@ -85,11 +88,11 @@ def make_agent(name: str = "Test agent", nodes: int = 1) -> dict:
 CALL_T0 = datetime(2026, 10, 5, 9, 0, tzinfo=UTC)
 
 
-def make_call(call_id: str, agent_id: str | None = "desk", *, minutes: int = 0, stuck_in: str | None = None) -> CallRecord:
+def make_call(call_id: str, agent_id: str = "desk", *, minutes: int = 0, stuck_in: str | None = None) -> CallRecord:
     """A stored call that ended in ``n0`` after 1.5 s, for seeding.
 
     :param call_id: Its id.
-    :param agent_id: The agent it ran; None for an AGENT_FLOW call.
+    :param agent_id: The agent it ran.
     :param minutes: When it started, in minutes after CALL_T0.
     :param stuck_in: A node to record a ``stuck`` event in.
     :return: The record.

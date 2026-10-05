@@ -41,22 +41,20 @@ make dev   # agent API + voice bot (:7860, talk at /client) + UI (http://localho
 
 Or run the pieces separately: `make api`, `make web`.
 
-Create an agent, write its personality (system prompt), add nodes, and drag between nodes to create **actions** (functions the LLM calls to move on, with fields to collect). Every save is validated by `AgentBuilder`. To call a saved agent, switch the bot to it and open `http://localhost:7860/client`:
+Create an agent, write its personality (system prompt), add nodes, and drag between nodes to create **actions** (functions the LLM calls to move on, with fields to collect). Every save is validated by `AgentBuilder`. To call an agent, deploy it (the **Deploy** button on the agent list, or the API) and open `http://localhost:7860/client`:
 
 ```bash
 curl -X PUT localhost:7860/api/bot -H 'content-type: application/json' -d '{"agent_id":"<id>"}'
 ```
 
-The switch applies to the next call, with no restart, and calls in progress keep their agent. `AGENT_ID=<id> make dev` sets the agent at startup.
+Deploying pins the agent's current saved version: later saves don't reach callers until you deploy again. Deployments are stored, so a restart keeps the live agent; the next call gets a new deployment and calls in progress keep theirs. With nothing deployed, calls are refused.
 
 ## Layout
 
 | Path | Responsibility |
 | --- | --- |
-| `backend/src/api/bot/` | The voice bot, served by the API process. `pipeline.py` = the voice pipeline (WebRTC + ElevenLabs STT/TTS + OpenAI LLM), with no graph logic; `service.py` picks each call's agent; `routes.py` = `/api/bot` + WebRTC signaling. |
+| `backend/src/api/bot/` | The voice bot, served by the API process. `pipeline.py` = the voice pipeline (WebRTC + ElevenLabs STT/TTS + OpenAI LLM), with no graph logic; `service.py` deploys agents and picks each call's agent version; `routes.py` = `/api/bot` + WebRTC signaling. |
 | `backend/src/agent_builder/` | All agent-building code. `schema.py` = the declarative `AgentConfig` / `Node` / `Edge` contract; `builder.py` = `AgentBuilder`, which loads + validates the JSON and compiles it into a Pipecat Flows graph. |
 | `backend/src/main.py` | Backend entry point (FastAPI): the agent API and the voice bot. Agents live in SQLite; `api/agents/` holds routes → service → repository. Every save is validated with `AgentBuilder`. |
 | `frontend/` | Agent Composer UI (Vite + React + `@xyflow/react`, SCSS modules). Pages in `src/pages/`, shared API/types/UI kit in `src/shared/`. `make web-check` runs typecheck, lint, format check and tests. |
 | `backend/example_flow.json` | The example agent **as data** — a clinic scheduler. The artifact the Phase 2 Composer generates/edits. |
-
-With no agent selected, the bot runs `AGENT_FLOW` (a JSON file relative to `backend/`, default `example_flow.json`).

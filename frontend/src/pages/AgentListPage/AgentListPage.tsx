@@ -4,7 +4,7 @@ import { AgentTable } from "./components/AgentTable/AgentTable";
 import { BotStatusCard } from "./components/BotStatusCard/BotStatusCard";
 import styles from "./AgentListPage.module.scss";
 
-/** Route: / — every agent, which one the voice bot runs, and deploying another. */
+/** Route: / — every agent, which version the voice bot answers with, and deploying. */
 export function AgentListPage() {
   const agents = useAgentList();
   const bot = useBotStatus();
@@ -60,7 +60,11 @@ export function AgentListPage() {
           ) : (
             <AgentTable
               agents={agents.data}
-              runningAgentId={bot.data?.agent_id ?? null}
+              deployed={
+                bot.data?.agent_id && bot.data.version != null
+                  ? { agentId: bot.data.agent_id, version: bot.data.version }
+                  : null
+              }
               clientUrl={bot.data?.client_url}
               deployingAgentId={deploy.isPending ? deploy.variables : null}
               onDeploy={(agentId) => {

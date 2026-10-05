@@ -36,7 +36,7 @@ export function AppMenu() {
   // Undefined on /agents/new: an unsaved agent can't take a call yet.
   const { agentId } = useParams();
   const agents = useAgentList();
-  const runningAgentId = useBotStatus().data?.agent_id;
+  const deployedAgentId = useBotStatus().data?.agent_id;
   const testCall = useTestCall();
 
   const close = ({ refocus = false } = {}) => {
@@ -177,7 +177,7 @@ export function AppMenu() {
                   >
                     <RobotIcon className={styles.icon} />
                     <span className={styles.label}>{agent.name}</span>
-                    {agent.id === runningAgentId && <Badge tone="success">Running</Badge>}
+                    {agent.id === deployedAgentId && <Badge tone="success">Deployed</Badge>}
                   </Link>
                 ))}
               </div>

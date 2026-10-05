@@ -59,7 +59,7 @@ class CallRecorder:
         self,
         call_id: str | None,
         config: AgentConfig,
-        version: AgentVersion | None,
+        version: AgentVersion,
         *,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
@@ -67,7 +67,7 @@ class CallRecorder:
 
         :param call_id: The WebRTC session id; a random id when there's none.
         :param config: The agent the call runs.
-        :param version: The saved agent version it is; None for the AGENT_FLOW file.
+        :param version: The saved agent version it runs.
         :param clock: Seconds, monotonic; tests pass a fake one for exact timestamps.
         """
         self.id = call_id or uuid.uuid4().hex
@@ -204,8 +204,8 @@ class CallRecorder:
             events = [*events, {"type": "error", "at_ms": ended_ms, "message": self._error}]
         return CallRecord(
             id=self.id,
-            agent_id=self._version.agent_id if self._version else None,
-            agent_version=self._version.version if self._version else None,
+            agent_id=self._version.agent_id,
+            agent_version=self._version.version,
             agent_name=self.config.name,
             started_at=self._started_at,
             ended_at=self._started_at + timedelta(milliseconds=ended_ms),

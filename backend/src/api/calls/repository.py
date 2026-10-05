@@ -26,8 +26,8 @@ Outcome = Literal["completed", "abandoned", "not_started", "error"]
 @dataclass(frozen=True)
 class CallRecord:
     id: str
-    agent_id: str | None  # None: the call ran the AGENT_FLOW file, not a saved agent
-    agent_version: int | None
+    agent_id: str
+    agent_version: int
     agent_name: str
     started_at: datetime
     ended_at: datetime
@@ -70,7 +70,7 @@ class CallRecord:
 @dataclass(frozen=True)
 class CallSummary:
     id: str
-    agent_version: int | None
+    agent_version: int
     started_at: datetime
     duration_ms: int
     outcome: Outcome

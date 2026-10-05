@@ -2,19 +2,17 @@
 # BotService — runs voice calls inside the API process. Each WebRTC connection
 # gets its own pipeline task, with the agent resolved when the call connects:
 #
-#   the /start body's agent_id   (per call — what a "Test call" button sends)
-#   else the default agent       (PUT /api/bot; starts as the AGENT_ID env var)
-#   else the AGENT_FLOW file     (relative to backend/, default example_flow.json)
+#   the /start body's agent_id   that agent's latest saved version (a per-call test)
+#   else the deployment          the version deployed last (PUT /api/bot), from the database
 #
-# Switching the default never restarts anything: calls in progress keep their
-# agent, the next call loads the new one. Agents are read fresh from the database
-# per call, so edits saved in the UI apply to the next call too.
+# Deploying pins a version: saving edits changes nothing for callers until the
+# agent is deployed again. Deployments are stored, so a restart keeps the live
+# agent. Deploying never interrupts calls in progress; the next call gets the new
+# version. With nothing deployed, a call is refused (NothingDeployed).
 #
 
 import asyncio
-import os
 import uuid
-from pathlib import Path
 from typing import Any
 
 from loguru import logger
@@ -30,57 +28,79 @@ from agent_builder import AgentBuilder
 from api.agents.repository import AgentVersion
 from api.agents.service import AgentService
 from api.bot.pipeline import run_call
+from api.bot.repository import Deployment, DeploymentRepository
 from api.calls.service import CallRecordService
-from config import BACKEND_DIR
+
+
+class NothingDeployed(Exception):
+    """A call came in, but no agent is deployed to answer it."""
+
+    def __init__(self) -> None:
+        """Say what to do about it."""
+        super().__init__("No agent is deployed. Deploy one to take calls.")
 
 
 class BotService:
-    def __init__(self, agents: AgentService, call_records: CallRecordService) -> None:
-        """:param agents: Where calls' agents are loaded from.
+    def __init__(
+        self,
+        agents: AgentService,
+        call_records: CallRecordService,
+        deployments: DeploymentRepository,
+    ) -> None:
+        """Set up the bot; it reads what's deployed from the database on every call.
+
+        :param agents: Where calls' agents are loaded from.
         :param call_records: Where every finished call is stored.
+        :param deployments: Which agent version is live.
         """
         self._agents = agents
-        self._call_records = call_records  # every call is saved when it ends
-        self._agent_id: str | None = os.getenv("AGENT_ID") or None
-        self._agent_flow: Path = BACKEND_DIR / os.getenv("AGENT_FLOW", "example_flow.json")
+        self._call_records = call_records
+        self._deployments = deployments
         self._webrtc = SmallWebRTCRequestHandler()
         self._sessions: dict[str, dict[str, Any]] = {}  # /start body, until its offer arrives
         self._calls: set[asyncio.Task[None]] = set()
 
     @property
-    def agent_id(self) -> str | None:
-        """The default agent for new calls; None runs the AGENT_FLOW file."""
-        return self._agent_id
+    def deployment(self) -> Deployment | None:
+        """The live deployment (read from the database); None if nothing is deployed."""
+        return self._deployments.current()
 
     @property
     def active_calls(self) -> int:
         """How many calls are running now."""
         return len(self._calls)
 
-    def set_agent(self, agent_id: str) -> None:
-        """Make an agent the default for new calls; calls in progress keep theirs.
+    def deploy(self, agent_id: str) -> Deployment:
+        """Deploy an agent's current saved version; new calls get it, calls in
+        progress keep theirs.
 
-        :param agent_id: The agent to answer new calls with.
-        :raises AgentNotFound: If there's no such agent (the default stays).
+        :param agent_id: The agent to deploy.
+        :return: The new deployment.
+        :raises AgentNotFound: If there's no such agent (nothing changes).
         """
-        self._agents.get(agent_id)
-        self._agent_id = agent_id
-        logger.info(f"Voice bot now answers new calls with agent '{agent_id}'")
+        record = self._agents.get(agent_id)
+        deployment = self._deployments.record(AgentVersion(agent_id, record.version))
+        logger.info(f"Deployed agent '{agent_id}' v{record.version}; it answers new calls")
+        return deployment
 
-    def load(self, agent_id: str | None = None) -> tuple[AgentBuilder, AgentVersion | None]:
-        """The agent for a new call: ``agent_id``, else the default, else the AGENT_FLOW
-        file. Read fresh, so saved edits apply to the next call.
+    def load(self, agent_id: str | None = None) -> tuple[AgentBuilder, AgentVersion]:
+        """The agent for a new call: ``agent_id``'s latest saved version if the call
+        names one, else the deployed version.
 
         :param agent_id: The agent the call asked for, if any.
-        :return: The compiled agent, and which saved version it is (None for the file).
+        :return: The compiled agent, and which saved version it is.
         :raises AgentNotFound: If the agent asked for doesn't exist.
+        :raises NothingDeployed: If the call names none and nothing is deployed.
         """
-        agent_id = agent_id or self._agent_id
         if agent_id:
             record = self._agents.get(agent_id)
-            logger.info(f"Loaded agent '{agent_id}' v{record.version} from the database")
-            return AgentBuilder.from_dict(record.body), AgentVersion(agent_id, record.version)
-        return AgentBuilder.from_json(self._agent_flow), None
+        else:
+            deployment = self.deployment
+            if deployment is None:
+                raise NothingDeployed()
+            record = self._agents.get_version(deployment.agent.agent_id, deployment.agent.version)
+        logger.info(f"Loaded agent '{record.id}' v{record.version} for a call")
+        return AgentBuilder.from_dict(record.body), AgentVersion(record.id, record.version)
 
     # WebRTC signaling, as the prebuilt client speaks it: POST /start, then the
     # SDP offer and ICE candidates on /sessions/{id}/api/offer.
@@ -103,6 +123,7 @@ class BotService:
         :param request: The SDP offer.
         :return: The SDP answer.
         :raises AgentNotFound: If the session's agent doesn't exist.
+        :raises NothingDeployed: If the session names no agent and nothing is deployed.
         """
         body = self._sessions.pop(session_id, {}) if session_id else {}
         body = body or request.request_data or {}

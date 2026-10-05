@@ -10,7 +10,7 @@ export interface BotStatusCardProps {
   agents: AgentSummary[] | undefined;
 }
 
-/** What the voice bot is answering with right now, and where to talk to it. */
+/** Which agent version the voice bot answers with right now, and where to talk to it. */
 export function BotStatusCard({ status, error, agents }: BotStatusCardProps) {
   const deployed = status?.agent_id
     ? (agents?.find((agent) => agent.id === status.agent_id)?.name ?? status.agent_id)
@@ -29,10 +29,10 @@ export function BotStatusCard({ status, error, agents }: BotStatusCardProps) {
           <span className={styles.value}>
             {deployed ? (
               <span>
-                Answering with <strong>{deployed}</strong>
+                Answering with <strong>{deployed}</strong> v{status.version}
               </span>
             ) : (
-              <span className={styles.muted}>No agent deployed — running the example flow</span>
+              <span className={styles.muted}>No agent deployed — deploy one to take calls</span>
             )}
             <Badge tone={calls > 0 ? "brand" : "neutral"}>
               {calls} {calls === 1 ? "call" : "calls"} live

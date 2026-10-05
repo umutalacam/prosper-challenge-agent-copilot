@@ -113,12 +113,22 @@ def test_providers_are_singletons_and_overridable(tmp_path, monkeypatch):
         assert [a["id"] for a in client.get("/api/agents").json()] == ["override"]
 
 
-def test_bot_switches_to_a_saved_agent(client: TestClient):
-    assert client.get("/api/bot").status_code == 200
+def test_bot_deploys_an_agents_saved_version(client: TestClient):
+    status = client.get("/api/bot").json()
+    assert (status["agent_id"], status["version"], status["deployed_at"]) == (None, None, None)
+
     response = client.put("/api/bot", json={"agent_id": "prosper-scheduler"})
     assert response.status_code == 200
-    assert response.json()["agent_id"] == "prosper-scheduler"
-    assert response.json()["client_url"].endswith("/client/")
+    deployed = response.json()
+    assert (deployed["agent_id"], deployed["version"]) == ("prosper-scheduler", 1)
+    assert deployed["deployed_at"] and deployed["client_url"].endswith("/client/")
+    assert client.get("/api/bot").json() == deployed  # stored, not just in memory
+
+
+def test_with_nothing_deployed_a_call_is_refused(client: TestClient):
+    response = client.post("/api/offer", json={"sdp": "v=0", "type": "offer"})
+    assert response.status_code == 409
+    assert "Deploy one" in response.json()["detail"]
 
 
 def test_bot_refuses_unknown_agents(client: TestClient):

@@ -23,14 +23,26 @@ CREATE TABLE IF NOT EXISTS agent_versions (
     PRIMARY KEY (agent_id, version)
 ) STRICT;
 
+-- Every deploy, append-only (api/bot): which saved version of an agent answers
+-- calls from then on. The newest row is what's live. Deploying pins the version,
+-- so saving edits changes nothing for callers until the agent is deployed again.
+-- Deleting an agent drops its deployments (via agent_versions): deleting the
+-- live agent rolls back to the one deployed before it, if any.
+CREATE TABLE IF NOT EXISTS deployments (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id     TEXT NOT NULL,
+    version      INTEGER NOT NULL,
+    deployed_at  TEXT NOT NULL,
+    FOREIGN KEY (agent_id, version) REFERENCES agent_versions (agent_id, version) ON DELETE CASCADE
+) STRICT;
+
 -- One row per finished voice call, written once when the call ends (api/calls).
 -- `events` is the call's timeline: started, each caller / bot turn, each
 -- transition with the state after it (the state history), stuck warnings, ended.
--- `agent_id` is NULL for calls that ran the AGENT_FLOW file instead of a saved agent.
 CREATE TABLE IF NOT EXISTS calls (
     id             TEXT PRIMARY KEY,
-    agent_id       TEXT REFERENCES agents (id) ON DELETE CASCADE,
-    agent_version  INTEGER,
+    agent_id       TEXT NOT NULL REFERENCES agents (id) ON DELETE CASCADE,
+    agent_version  INTEGER NOT NULL,
     agent_name     TEXT NOT NULL,
     started_at     TEXT NOT NULL,
     ended_at       TEXT NOT NULL,

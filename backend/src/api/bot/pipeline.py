@@ -43,7 +43,7 @@ async def run_bot(
     transport: BaseTransport,
     runner_args: RunnerArguments,
     builder: AgentBuilder,
-    version: AgentVersion | None,
+    version: AgentVersion,
     call_records: CallRecordService,
 ) -> None:
     """Run one call: the voice pipeline driven by the agent's node graph, until the
@@ -52,7 +52,7 @@ async def run_bot(
     :param transport: The call's WebRTC transport.
     :param runner_args: The session (id, idle timeout, signal handling).
     :param builder: The compiled agent.
-    :param version: The saved agent version it is; None for the AGENT_FLOW file.
+    :param version: The saved agent version it is.
     :param call_records: Where the finished call is stored.
     """
     config = builder.config
@@ -173,14 +173,14 @@ async def _save(call_records: CallRecordService, call_log: CallLog) -> None:
 async def run_call(
     runner_args: RunnerArguments,
     builder: AgentBuilder,
-    version: AgentVersion | None,
+    version: AgentVersion,
     call_records: CallRecordService,
 ) -> None:
     """One call: build the transport for its WebRTC connection, then run the pipeline.
 
     :param runner_args: The session, with its WebRTC connection.
     :param builder: The compiled agent.
-    :param version: The saved agent version it is; None for the AGENT_FLOW file.
+    :param version: The saved agent version it is.
     :param call_records: Where the finished call is stored.
     """
     transport = await create_transport(runner_args, transport_params)

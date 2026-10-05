@@ -21,7 +21,7 @@ dev: $(FRONTEND)/node_modules ## Run API + voice bot + UI together (Ctrl+C stops
 	@echo "Voice -> http://localhost:$(PORT)/client  (switch agents: PUT /api/bot {\"agent_id\": ...})"
 	@$(MAKE) --no-print-directory -j2 api web
 
-api: ## Run the agent API + voice bot on :7860 (talk at /client; AGENT_ID=<id> sets the default agent)
+api: ## Run the agent API + voice bot on :7860 (deploy an agent, then talk at /client)
 	uv run --directory $(PROJECT) uvicorn main:app --app-dir src --reload --reload-dir src --port $(PORT)
 
 api-test: ## Run the backend tests (pytest)

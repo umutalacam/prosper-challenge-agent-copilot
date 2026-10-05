@@ -33,6 +33,7 @@ from api.agents.repository import AgentNotFound, VersionConflict
 from api.agents.service import InvalidAgent
 from api.agents.routes import router as agents_router
 from api.bot.routes import CLIENT_PATH, router as bot_router, webrtc_router
+from api.bot.service import NothingDeployed
 from api.calls.repository import CallNotFound
 from api.calls.routes import router as calls_router
 from api.copilot.routes import router as copilot_router
@@ -43,6 +44,7 @@ from dependencies import (
     get_bot_service,
     get_call_record_service,
     get_call_repository,
+    get_deployment_repository,
 )
 
 # OPENAI_API_KEY (voice pipeline + copilot), ELEVENLABS_API_KEY (voice pipeline).
@@ -59,11 +61,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     repository = app.dependency_overrides.get(get_agent_repository, get_agent_repository)()
     call_repository = app.dependency_overrides.get(get_call_repository, get_call_repository)()
+    deployments = app.dependency_overrides.get(get_deployment_repository, get_deployment_repository)()
     # The same cached instances the routes get through Depends. Keyword arguments,
     # as FastAPI passes them: lru_cache keys f(x) and f(name=x) apart.
     agents = get_agent_service(repository=repository)
     call_records = get_call_record_service(repository=call_repository, agents=agents)
-    bot = get_bot_service(agents=agents, call_records=call_records)
+    bot = get_bot_service(agents=agents, call_records=call_records, deployments=deployments)
     yield
     await bot.close()  # hang up calls in progress
 
@@ -114,6 +117,15 @@ def _register_error_handlers(app: FastAPI) -> None:
         :return: The 422 response.
         """
         return JSONResponse({"detail": str(exc)}, status_code=422)
+
+    @app.exception_handler(NothingDeployed)
+    async def nothing_deployed(_: Request, exc: NothingDeployed) -> JSONResponse:
+        """A call with no agent deployed is a 409: deploy one first.
+
+        :param exc: The error; its message is the detail.
+        :return: The 409 response.
+        """
+        return JSONResponse({"detail": str(exc)}, status_code=409)
 
     @app.exception_handler(VersionConflict)
     async def conflict(_: Request, exc: VersionConflict) -> JSONResponse:

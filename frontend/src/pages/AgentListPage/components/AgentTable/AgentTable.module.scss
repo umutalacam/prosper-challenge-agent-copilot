@@ -45,7 +45,7 @@
 }
 
 // The deployed agent's row carries the brand mark.
-.running > :first-child {
+.deployed > :first-child {
   box-shadow: inset 3px 0 0 $color-brand;
 }
 
@@ -109,4 +109,12 @@
 
 .visuallyHidden {
   @include m.visually-hidden;
+}
+
+// A deployed agent whose newer saves aren't live: the badge, then the saved version.
+.status {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-2;
 }

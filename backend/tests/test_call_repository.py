@@ -41,7 +41,6 @@ def test_an_agents_calls_list_newest_first_scoped_and_limited(calls: CallReposit
     calls.save(call("new", minutes=10, stuck_in="n0"))
     calls.save(call("mid", minutes=5))
     calls.save(call("other", "billing", minutes=20))
-    calls.save(call("file", None, minutes=30))  # an AGENT_FLOW call: no agent
 
     listed = calls.list_for_agent("desk")
     assert [c.id for c in listed] == ["new", "mid", "old"]

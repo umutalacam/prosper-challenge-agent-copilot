@@ -27,12 +27,11 @@ class CallRecordService:
 
         :param record: The finished call.
         """
-        if record.agent_id is not None:
-            try:
-                self._agents.get(record.agent_id)
-            except AgentNotFound:
-                logger.info(f"Call {record.id} not saved: agent '{record.agent_id}' was deleted during the call")
-                return
+        try:
+            self._agents.get(record.agent_id)
+        except AgentNotFound:
+            logger.warning(f"Call {record.id} not saved: agent '{record.agent_id}' was deleted during the call")
+            return
         self._repository.save(record)
         logger.info(f"Saved call {record.id} ({record.outcome})")
 

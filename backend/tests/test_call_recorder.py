@@ -40,11 +40,11 @@ def builder() -> AgentBuilder:
 DESK_V4 = AgentVersion("desk", 4)
 
 
-def recorder_for(builder: AgentBuilder, version: AgentVersion | None = DESK_V4) -> CallRecorder:
+def recorder_for(builder: AgentBuilder, version: AgentVersion = DESK_V4) -> CallRecorder:
     """A recorder on a fake clock, hooked into the builder's transitions.
 
     :param builder: The agent the call runs.
-    :param version: Its saved version; None for an AGENT_FLOW call.
+    :param version: The saved agent version it runs.
     :return: The recorder.
     """
     recorder = CallRecorder("call-1", builder.config, version, clock=Clock())
@@ -145,13 +145,6 @@ def test_stuck_is_recorded_once_per_stay_in_a_node(builder: AgentBuilder):
     ]
     assert [e["reply"] for e in events if e["type"] == "bot"] == [1, 2, 3, 4, 5]
     assert recorder.record().transcript[0]["interrupted"] is True
-
-
-def test_a_file_agent_has_no_id_or_version(builder: AgentBuilder):
-    recorder = recorder_for(builder, version=None)
-    recorder.ended({})
-    record = recorder.record()
-    assert (record.agent_id, record.agent_version) == (None, None)
 
 
 class Store:

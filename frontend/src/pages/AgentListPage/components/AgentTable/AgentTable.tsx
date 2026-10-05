@@ -2,12 +2,13 @@ import { clsx } from "clsx";
 import { Link } from "react-router";
 import type { AgentSummary } from "@/shared/types/agent";
 import { Badge, Button, ButtonLink } from "@/shared/ui";
+import { deployState, type Deployed } from "./deployState";
 import styles from "./AgentTable.module.scss";
 
 export interface AgentTableProps {
   agents: AgentSummary[];
-  /** The agent the voice bot answers new calls with. */
-  runningAgentId: string | null;
+  /** What the voice bot answers calls with; null when nothing is deployed. */
+  deployed: Deployed | null;
   clientUrl: string | undefined;
   /** The agent a deploy is in flight for. */
   deployingAgentId: string | null | undefined;
@@ -18,7 +19,7 @@ const savedAt = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeSt
 
 export function AgentTable({
   agents,
-  runningAgentId,
+  deployed,
   clientUrl,
   deployingAgentId,
   onDeploy,
@@ -43,10 +44,10 @@ export function AgentTable({
         </thead>
         <tbody>
           {agents.map((agent) => {
-            const running = agent.id === runningAgentId;
-            const deploying = agent.id === deployingAgentId;
+            const state = deployState(agent, deployed, deployingAgentId);
+            const live = state.kind === "deployed" || state.kind === "outdated";
             return (
-              <tr key={agent.id} className={running ? styles.running : undefined}>
+              <tr key={agent.id} className={live ? styles.deployed : undefined}>
                 <th scope="row">
                   <Link to={`/agents/${agent.id}`} className={styles.name}>
                     {agent.name}
@@ -61,36 +62,41 @@ export function AgentTable({
                   · v{agent.version}
                 </td>
                 <td>
-                  {running ? (
-                    <Badge tone="success">● Running</Badge>
+                  {state.kind === "deploying" ? (
+                    <Badge tone="neutral">Deploying…</Badge>
+                  ) : state.kind === "deployed" ? (
+                    <Badge tone="success">● Deployed v{state.version}</Badge>
+                  ) : state.kind === "outdated" ? (
+                    <span className={styles.status}>
+                      <Badge tone="success">● Deployed v{state.version}</Badge>
+                      <span className={styles.muted}>v{agent.version} saved</span>
+                    </span>
                   ) : (
                     <span className={styles.muted}>Not deployed</span>
                   )}
                 </td>
                 <td>
                   <div className={styles.actions}>
-                    {running ? (
-                      clientUrl && (
-                        <a
-                          className={styles.talk}
-                          href={clientUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Talk to it ↗
-                        </a>
-                      )
-                    ) : (
+                    {live && clientUrl && (
+                      <a className={styles.talk} href={clientUrl} target="_blank" rel="noreferrer">
+                        Talk to it ↗
+                      </a>
+                    )}
+                    {state.kind !== "deployed" && (
                       <Button
                         size="sm"
                         variant="primary"
                         disabled={deployingAgentId != null}
-                        aria-label={`Deploy ${agent.name}`}
+                        aria-label={`${state.kind === "outdated" ? "Redeploy" : "Deploy"} ${agent.name}`}
                         onClick={() => {
                           onDeploy(agent.id);
                         }}
                       >
-                        {deploying ? "Deploying…" : "Deploy"}
+                        {state.kind === "deploying"
+                          ? "Deploying…"
+                          : state.kind === "outdated"
+                            ? `Redeploy v${agent.version}`
+                            : "Deploy"}
                       </Button>
                     )}
                     <ButtonLink to={`/agents/${agent.id}`} size="sm" variant="secondary">
