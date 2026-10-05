@@ -5,6 +5,10 @@
   @include m.stack(6px);
 }
 
+.centered {
+  align-items: center;
+}
+
 .logo {
   display: block;
 }

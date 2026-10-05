@@ -6,6 +6,7 @@
 import type { ComponentType } from "react";
 import {
   ArrowLeft,
+  ArrowRight,
   ArrowUp,
   Braces,
   ChatDots,
@@ -46,6 +47,8 @@ export const StopIcon = appIcon(StopFill, "StopIcon");
 export const MenuIcon = appIcon(List, "MenuIcon");
 /** Back. */
 export const ArrowLeftIcon = appIcon(ArrowLeft, "ArrowLeftIcon");
+/** Arrow right: opens something (an agent row). */
+export const ArrowRightIcon = appIcon(ArrowRight, "ArrowRightIcon");
 /** Telephone: a voice call (test call, the call log). */
 export const PhoneIcon = appIcon(Telephone, "PhoneIcon");
 /** A robot: an agent, e.g. in the menu's recent list. */

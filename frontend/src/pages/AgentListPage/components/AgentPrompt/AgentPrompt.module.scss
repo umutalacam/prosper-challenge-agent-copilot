@@ -1,0 +1,86 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.prompt {
+  @include m.stack($space-3);
+}
+
+.box {
+  @include m.stack($space-2);
+  padding: $space-4;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  box-shadow: $shadow-float;
+  transition: border-color 120ms ease;
+
+  &:focus-within {
+    border-color: $color-brand;
+  }
+}
+
+.input {
+  width: 100%;
+  min-height: 72px;
+  padding: 0;
+  border: none;
+  outline: none;
+  resize: none;
+  background: none;
+  color: $color-text;
+  font: inherit;
+  font-size: $font-size-lg;
+  line-height: 1.5;
+
+  &::placeholder {
+    color: $color-text-muted;
+  }
+}
+
+.footer {
+  @include m.cluster($space-3);
+  justify-content: flex-end;
+}
+
+.hint {
+  margin-right: auto; // keeps the button right-aligned when the hint is hidden
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+
+  @media (max-width: $breakpoint-sm) {
+    display: none;
+  }
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: $space-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.suggestion {
+  padding: $space-1 $space-3;
+  border: 1px solid $color-border;
+  border-radius: $radius-pill;
+  background: $color-surface;
+  color: $color-text-muted;
+  font: inherit;
+  font-size: $font-size-sm;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+
+  &:hover {
+    border-color: $color-border-strong;
+    color: $color-text;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}

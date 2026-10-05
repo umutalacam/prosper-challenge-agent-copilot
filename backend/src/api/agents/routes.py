@@ -75,4 +75,6 @@ def _summary(summary: AgentSummary) -> dict[str, Any]:
         "node_count": summary.node_count,
         "version": summary.version,
         "updated_at": summary.updated_at.isoformat(),
+        "call_count": summary.call_count,
+        "last_call_at": summary.last_call_at.isoformat() if summary.last_call_at else None,
     }

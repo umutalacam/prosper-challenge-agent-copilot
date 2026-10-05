@@ -2,7 +2,7 @@ import type { CallSummary } from "@/shared/types/call";
 import { Badge, ClockIcon } from "@/shared/ui";
 import { callerName } from "../../lib/callerName";
 import { OUTCOMES } from "../../lib/callOutcomes";
-import { formatDuration, formatRelative } from "../../lib/time";
+import { formatDuration, formatRelative } from "@/shared/lib/time";
 import { CallAvatar } from "../CallAvatar/CallAvatar";
 import styles from "./CallListItem.module.scss";
 

@@ -1,3 +1,4 @@
+from datetime import timedelta
 import sqlite3
 import threading
 
@@ -49,6 +50,21 @@ def test_list_is_sorted_by_name_with_generated_columns(repository: AgentReposito
         ("a", "Alpha", 1, 1),
         ("b", "beta", 3, 1),
     ]
+
+
+def test_list_counts_each_agents_calls(repository: AgentRepository):
+    from api.calls.repository import CallRepository
+    from tests.conftest import CALL_T0, make_call
+
+    repository.create("desk", make_agent("Desk"))
+    repository.create("quiet", make_agent("Quiet"))
+    calls = CallRepository(repository.path)
+    calls.save(make_call("c1", "desk", minutes=0), [])
+    calls.save(make_call("c2", "desk", minutes=7), [])
+
+    desk, quiet = repository.list()
+    assert (desk.call_count, desk.last_call_at) == (2, CALL_T0 + timedelta(minutes=7))
+    assert (quiet.call_count, quiet.last_call_at) == (0, None)
 
 
 def test_update_bumps_version_and_keeps_history(repository: AgentRepository):

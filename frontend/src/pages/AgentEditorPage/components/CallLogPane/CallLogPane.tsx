@@ -3,7 +3,7 @@ import { errorMessage, useAgentCalls } from "@/shared/api";
 import type { CallOutcome } from "@/shared/types/call";
 import type { CopilotFix } from "@/shared/types/copilot";
 import { CloseIcon, EmptyState, IconButton, PhoneIcon } from "@/shared/ui";
-import { useNow } from "../../hooks/useNow";
+import { useNow } from "@/shared/hooks/useNow";
 import { OUTCOMES } from "../../lib/callOutcomes";
 import { CallDetail } from "../CallDetail/CallDetail";
 import { CallList } from "../CallList/CallList";

@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { useParams } from "react-router";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { ApiError, errorMessage, useAgent } from "@/shared/api";
+import type { NewAgentState } from "@/shared/types/agent";
 import { Button, ButtonLink, EmptyState } from "@/shared/ui";
 import { AgentEditor } from "./AgentEditor";
 import { createDraftAgent } from "./lib/draftAgent";
@@ -11,9 +12,21 @@ export function AgentEditorPage() {
   return agentId ? <StoredAgentEditor key={agentId} agentId={agentId} /> : <NewAgentEditor />;
 }
 
+function promptOf(state: unknown): string | undefined {
+  const prompt = (state as Partial<NewAgentState> | null)?.prompt;
+  return typeof prompt === "string" && prompt.trim() ? prompt : undefined;
+}
+
 function NewAgentEditor() {
   const [draft] = useState(createDraftAgent);
-  return <AgentEditor agentId={null} initialAgent={draft} />;
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [prompt] = useState(() => promptOf(location.state));
+  // Taken once: drop it from history so a reload doesn't send it again.
+  useEffect(() => {
+    if (prompt) void navigate(".", { replace: true, state: null });
+  }, [prompt, navigate]);
+  return <AgentEditor agentId={null} initialAgent={draft} initialPrompt={prompt} />;
 }
 
 function StoredAgentEditor({ agentId }: { agentId: string }) {

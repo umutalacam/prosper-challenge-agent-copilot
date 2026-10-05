@@ -1,7 +1,7 @@
 import { clsx } from "clsx";
 import type { CallDetail, CallIssue, CallOutcome, PathStep } from "@/shared/types/call";
 import { ActionIcon, Badge, CheckIcon, CloseIcon } from "@/shared/ui";
-import { formatDuration } from "../../lib/time";
+import { formatDuration } from "@/shared/lib/time";
 import styles from "./CallPath.module.scss";
 
 /** How the last step reads, by how the call ended there. */

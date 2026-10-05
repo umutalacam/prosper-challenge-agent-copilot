@@ -1,4 +1,4 @@
-// Human time for the call log: "34 minutes ago", "2:05". Pure; pass `now` in so
+// Human time for the call log and the agent list: "34 minutes ago", "2:05". Pure; pass `now` in so
 // callers (and tests) decide the clock.
 
 const relative = new Intl.RelativeTimeFormat("en", { numeric: "auto", style: "long" });

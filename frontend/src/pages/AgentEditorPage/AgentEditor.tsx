@@ -24,10 +24,10 @@ import { createEditorState, editorReducer, NO_SELECTION } from "./state/editorRe
 import styles from "./AgentEditor.module.scss";
 
 export type AgentEditorProps =
-  /** A new, never-saved agent. */
-  | { agentId: null; initialAgent: Agent; initialVersion?: undefined }
+  /** A new, never-saved agent; `initialPrompt` (from the home page) goes to the copilot first. */
+  | { agentId: null; initialAgent: Agent; initialVersion?: undefined; initialPrompt?: string }
   /** A stored agent, at the version it was loaded at. */
-  | { agentId: string; initialAgent: Agent; initialVersion: number };
+  | { agentId: string; initialAgent: Agent; initialVersion: number; initialPrompt?: undefined };
 
 const CONFLICT_MESSAGE =
   "Someone else saved this agent since you opened it, so your save was blocked to avoid " +
@@ -38,7 +38,12 @@ const CONFLICT_MESSAGE =
  * editor: a full-bleed canvas with the toolbar and inspector card floating over it.
  * Mount it with a `key` per agent so switching agents starts from a fresh state.
  */
-export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEditorProps) {
+export function AgentEditor({
+  agentId,
+  initialAgent,
+  initialVersion,
+  initialPrompt,
+}: AgentEditorProps) {
   const [state, dispatch] = useReducer(editorReducer, initialAgent, (agent) =>
     // A brand-new agent opens on its settings so the first thing you do is name it.
     createEditorState(withPositions(agent), agentId ? NO_SELECTION : { kind: "agent" }),
@@ -89,6 +94,19 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
     }, []),
   });
   const lastTurn = copilot.turns.at(-1);
+
+  // A new agent started from the home page's prompt: the copilot builds it right
+  // away. Deferred and cancelled on cleanup, so StrictMode's double effect sends it once.
+  const { send: sendToCopilotNow } = copilot;
+  useEffect(() => {
+    if (!initialPrompt) return;
+    const timer = window.setTimeout(() => {
+      void sendToCopilotNow(initialPrompt);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [initialPrompt, sendToCopilotNow]);
 
   // Read-only while the copilot edits: its edits would overwrite hand edits mid-turn.
   useEffect(() => {

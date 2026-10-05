@@ -42,6 +42,8 @@ class AgentSummary:
     node_count: int
     version: int
     updated_at: datetime
+    call_count: int = 0  # stored calls (api/calls), any version
+    last_call_at: datetime | None = None  # when the newest one started; None without calls
 
 
 class AgentNotFound(Exception):
@@ -95,14 +97,20 @@ class AgentRepository:
 
     # ---- reads -------------------------------------------------------------
     def list(self) -> list[AgentSummary]:
-        """All agents, ordered by name.
+        """All agents, ordered by name, with how many calls each has taken. The calls
+        are api/calls's table, in the same database; read here so the list stays one query.
 
         :return: Their summaries, without bodies.
         """
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT id, name, node_count, version, updated_at FROM agents "
-                "ORDER BY name COLLATE NOCASE, id"
+                "SELECT agents.id, name, node_count, version, updated_at,"
+                " COALESCE(stats.call_count, 0) AS call_count, stats.last_call_at"
+                " FROM agents LEFT JOIN ("
+                "   SELECT agent_id, count(*) AS call_count, max(started_at) AS last_call_at"
+                "   FROM calls GROUP BY agent_id"
+                " ) AS stats ON stats.agent_id = agents.id"
+                " ORDER BY name COLLATE NOCASE, agents.id"
             ).fetchall()
         return [
             AgentSummary(
@@ -111,6 +119,8 @@ class AgentRepository:
                 node_count=r["node_count"] or 0,
                 version=r["version"],
                 updated_at=datetime.fromisoformat(r["updated_at"]),
+                call_count=r["call_count"],
+                last_call_at=datetime.fromisoformat(r["last_call_at"]) if r["last_call_at"] else None,
             )
             for r in rows
         ]

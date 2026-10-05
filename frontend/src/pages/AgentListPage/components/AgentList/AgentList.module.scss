@@ -1,0 +1,155 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.list {
+  @include m.stack($space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// One agent: a card that opens the agent anywhere you click (the name link's
+// ::after covers it); the deploy button sits above that layer.
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: $space-4;
+  padding: $space-4;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  background: $color-surface;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+
+  &:hover {
+    border-color: $color-border-strong;
+    box-shadow: $shadow-sm;
+
+    .arrow {
+      color: $color-text;
+      transform: translateX(2px);
+    }
+  }
+
+  &:focus-within {
+    border-color: $color-brand;
+  }
+
+  @media (max-width: $breakpoint-sm) {
+    gap: $space-3;
+    padding: $space-3;
+  }
+}
+
+.mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: $radius-md;
+  background: $color-surface-sunken;
+  color: $color-text-muted;
+}
+
+.live .mark {
+  background: $color-success-soft;
+  color: $color-success;
+}
+
+.main {
+  @include m.stack($space-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.titleLine {
+  @include m.cluster($space-2);
+  flex-wrap: wrap;
+  row-gap: $space-1;
+}
+
+.name {
+  @include m.truncate;
+  color: $color-text;
+  font-size: $font-size-md;
+  font-weight: 600;
+  text-decoration: none;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: $radius-lg;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  // Phones: the full name over truncation; the badge wraps under it.
+  @media (max-width: $breakpoint-sm) {
+    overflow: visible;
+    white-space: normal;
+  }
+}
+
+.status {
+  @include m.cluster($space-2);
+}
+
+.saved,
+.meta,
+.lastCall {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}
+
+.usage {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+
+  @media (max-width: $breakpoint-sm) {
+    display: none;
+  }
+}
+
+.calls {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+
+  strong {
+    color: $color-text;
+    font-size: $font-size-lg;
+    font-weight: 600;
+  }
+}
+
+.deploy {
+  position: relative; // above the row link's cover
+  z-index: 1;
+  flex: none;
+}
+
+.arrow {
+  flex: none;
+  color: $color-text-muted;
+  transition:
+    color 120ms ease,
+    transform 120ms ease;
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+
+  @media (max-width: $breakpoint-sm) {
+    display: none;
+  }
+}

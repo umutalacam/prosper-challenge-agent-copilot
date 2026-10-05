@@ -4,25 +4,75 @@
 .page {
   height: 100%;
   overflow-y: auto;
-  background: $color-bg;
+  // A faint brand glow behind the hero, fading into the page background.
+  background:
+    radial-gradient(ellipse 60% 360px at 50% 0, $color-brand-soft, transparent), $color-bg;
 }
 
 .container {
-  @include m.stack($space-6);
-  max-width: 960px;
+  @include m.stack($space-8);
+  max-width: 720px;
   margin: 0 auto;
-  padding: $space-8 $space-6;
+  padding: $space-8 $space-4 64px;
 }
 
-.header {
-  @include m.cluster($space-4);
-  justify-content: space-between;
+// ---- hero: the logo above all content, then the pitch ----
+.hero {
+  @include m.stack($space-4);
+  align-items: center;
+  padding-top: $space-6;
+  text-align: center;
 }
 
-.section {
+.title {
+  max-width: 14em;
+  margin: $space-4 0 0; // room below the logo
+  color: $color-text;
+  font-size: $font-size-display;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
+
+  @media (max-width: $breakpoint-sm) {
+    font-size: 30px;
+  }
+}
+
+.titleAccent {
+  display: block;
+  color: $color-accent;
+}
+
+.lede {
+  max-width: 34em;
+  margin: 0;
+  color: $color-text-muted;
+  font-size: $font-size-lg;
+  line-height: 1.6;
+}
+
+// ---- your agents ----
+.agents {
   @include m.stack($space-3);
+  padding-top: $space-4;
+}
+
+.agentsHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $space-3;
 }
 
 .heading {
-  font-size: $font-size-lg;
+  margin: 0;
+  font-size: $font-size-xl;
+  font-weight: 600;
+}
+
+.count {
+  margin: 2px 0 0;
+  color: $color-text-muted;
+  font-size: $font-size-sm;
 }

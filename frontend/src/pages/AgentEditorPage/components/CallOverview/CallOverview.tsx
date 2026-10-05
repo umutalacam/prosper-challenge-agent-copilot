@@ -4,7 +4,7 @@ import type { CopilotFix } from "@/shared/types/copilot";
 import { Badge, ClockIcon, SparklesIcon } from "@/shared/ui";
 import { callerName } from "../../lib/callerName";
 import { OUTCOMES } from "../../lib/callOutcomes";
-import { formatDuration, formatRelative } from "../../lib/time";
+import { formatDuration, formatRelative } from "@/shared/lib/time";
 import { CallAnalysis } from "../CallAnalysis/CallAnalysis";
 import { CallAvatar } from "../CallAvatar/CallAvatar";
 import { CallPath } from "../CallPath/CallPath";

@@ -63,4 +63,14 @@ export interface AgentSummary {
   node_count: number;
   version: number;
   updated_at: string;
+  /** Stored calls it has taken, any version. */
+  call_count: number;
+  /** When its newest call started (ISO 8601); null without calls. */
+  last_call_at: string | null;
+}
+
+/** Navigation state for /agents/new from the home page's prompt box. */
+export interface NewAgentState {
+  /** Sent to the copilot as the new agent's first request. */
+  prompt: string;
 }

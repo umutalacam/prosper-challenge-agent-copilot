@@ -12,6 +12,8 @@ const agent = (id: string, updated_at: string): AgentSummary => ({
   node_count: 1,
   version: 1,
   updated_at,
+  call_count: 0,
+  last_call_at: null,
 });
 
 const agents = [

@@ -16,6 +16,7 @@ export { IconButton } from "./IconButton/IconButton";
 export {
   ActionIcon,
   ArrowLeftIcon,
+  ArrowRightIcon,
   BracesIcon,
   ChatIcon,
   CheckIcon,

@@ -8,6 +8,8 @@ const agent: AgentSummary = {
   node_count: 3,
   version: 5,
   updated_at: "2026-10-05T09:00:00Z",
+  call_count: 0,
+  last_call_at: null,
 };
 
 describe("deployState", () => {
