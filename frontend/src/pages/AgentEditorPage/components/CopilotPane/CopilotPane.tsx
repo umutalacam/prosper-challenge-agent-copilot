@@ -4,6 +4,7 @@ import { CloseIcon, IconButton, SparklesIcon } from "@/shared/ui";
 import type { CopilotTurn } from "../../hooks/useCopilot";
 import { useStickToBottom } from "../../hooks/useStickToBottom";
 import { CopilotQuestions } from "../CopilotQuestions/CopilotQuestions";
+import { TypedText } from "../TypedText/TypedText";
 import styles from "./CopilotPane.module.scss";
 
 export interface CopilotPaneProps {
@@ -126,7 +127,9 @@ function Turn({ turn, onAnswer }: { turn: CopilotTurn; onAnswer: (message: strin
           </p>
         )}
 
-        {turn.reply && <p className={styles.reply}>{turn.reply}</p>}
+        {/* Always mounted, so a reply arriving types itself out (an existing one on
+            reopening the pane shows at once). */}
+        <TypedText text={turn.reply ?? ""} className={styles.reply} />
 
         {turn.questions && turn.questions.length > 0 && (
           <CopilotQuestions key={turn.id} questions={turn.questions} onSubmit={onAnswer} />

@@ -1,0 +1,22 @@
+@use "@/shared/styles/mixins" as m;
+
+// One letter fading in from a slight blur; `both` keeps it hidden until its
+// delay is up, so the text appears to generate from left to right.
+.char {
+  animation: char-in 200ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes char-in {
+  from {
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+
+.visuallyHidden {
+  @include m.visually-hidden;
+}
