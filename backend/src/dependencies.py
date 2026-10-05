@@ -18,13 +18,18 @@ from openai import AsyncOpenAI
 from api.agents.repository import AgentRepository
 from api.agents.service import AgentService
 from api.bot.service import BotService
+from api.calls.repository import CallRepository
+from api.calls.service import CallRecordService
 from api.copilot.service import CopilotService
 from config import COPILOT_DIR, COPILOT_MODEL, SEED_SQL, agents_db_path
 
 
 @lru_cache
 def get_agent_repository() -> AgentRepository:
-    """The agent database. Created on first use; an empty one gets the sample agent."""
+    """The agent database. Created on first use; an empty one gets the sample agent.
+
+    :return: The process's one repository.
+    """
     return AgentRepository(agents_db_path(), seed=SEED_SQL)
 
 
@@ -32,19 +37,57 @@ def get_agent_repository() -> AgentRepository:
 def get_agent_service(
     repository: Annotated[AgentRepository, Depends(get_agent_repository)],
 ) -> AgentService:
-    # Cached per repository instance, so an overridden repository gets its own service.
+    """Agent rules over a repository. Cached per repository instance, so an
+    overridden repository gets its own service.
+
+    :param repository: The agent database.
+    :return: The service for that repository.
+    """
     return AgentService(repository)
+
+
+@lru_cache
+def get_call_repository() -> CallRepository:
+    """Stored calls, in the same database file as the agents.
+
+    :return: The process's one call repository.
+    """
+    return CallRepository(agents_db_path())
+
+
+@lru_cache
+def get_call_record_service(
+    repository: Annotated[CallRepository, Depends(get_call_repository)],
+    agents: Annotated[AgentService, Depends(get_agent_service)],
+) -> CallRecordService:
+    """Stored calls: saved by the voice bot, read by the calls routes.
+
+    :param repository: Where calls are stored.
+    :param agents: Used to check that a call's agent exists.
+    :return: The service for those dependencies.
+    """
+    return CallRecordService(repository, agents)
 
 
 @lru_cache
 def get_bot_service(
     agents: Annotated[AgentService, Depends(get_agent_service)],
+    call_records: Annotated[CallRecordService, Depends(get_call_record_service)],
 ) -> BotService:
-    # One per process: it owns the WebRTC connections and the running calls.
-    return BotService(agents)
+    """The voice bot. One per process: it owns the WebRTC connections and the running calls.
+
+    :param agents: Where calls' agents are loaded from.
+    :param call_records: Where finished calls are stored.
+    :return: The bot.
+    """
+    return BotService(agents, call_records)
 
 
 @lru_cache
 def get_copilot_service() -> CopilotService:
-    # AsyncOpenAI reads OPENAI_API_KEY from the environment (backend/.env, loaded in main.py).
+    """The agent copilot. AsyncOpenAI reads OPENAI_API_KEY from the environment
+    (backend/.env, loaded in main.py).
+
+    :return: The process's one copilot.
+    """
     return CopilotService(AsyncOpenAI(), COPILOT_MODEL, COPILOT_DIR)

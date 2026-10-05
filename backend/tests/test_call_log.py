@@ -5,12 +5,27 @@ from loguru import logger
 
 from agent_builder import AgentBuilder
 from api.bot.call_log import CallLog
+from api.calls.recorder import CallRecorder
 
 from .conftest import make_agent
 
 
+def call_log(call_id: str | None, config) -> CallLog:
+    """A CallLog with its own recorder, for a call of no saved agent.
+
+    :param call_id: The call's id.
+    :param config: The agent the call runs.
+    :return: The log.
+    """
+    return CallLog(CallRecorder(call_id, config, None))
+
+
 @pytest.fixture
 def lines():
+    """Capture the INFO+ log messages a test produces.
+
+    :return: The messages, as they're logged.
+    """
     captured: list[str] = []
     sink = logger.add(lambda message: captured.append(message.record["message"]), level="INFO")
     yield captured
@@ -19,6 +34,7 @@ def lines():
 
 @pytest.fixture
 def builder() -> AgentBuilder:
+    """:return: The agent ``n0`` → ``n1`` → ``n2``, with ``n2`` an end node."""
     agent = make_agent("Desk", nodes=3)  # n0 -> n1 -> n2
     agent["nodes"][2]["end"] = True
     return AgentBuilder.from_dict(agent)
@@ -26,17 +42,25 @@ def builder() -> AgentBuilder:
 
 class FakeFlowManager:
     def __init__(self) -> None:
+        """Start with an empty state, as a new flow does."""
         self.state: dict = {}
 
 
 def take(builder: AgentBuilder, node: dict, args: dict, flow_manager: FakeFlowManager) -> dict:
-    """Call the node's first action like the LLM would; return the next node."""
+    """Call the node's first action like the LLM would.
+
+    :param builder: The agent (unused; kept for readability at call sites).
+    :param node: The node, as the builder compiled it.
+    :param args: The action's arguments.
+    :param flow_manager: Holds the state the action merges into.
+    :return: The next node.
+    """
     _, next_node = asyncio.run(node["functions"][0].handler(args, flow_manager))
     return next_node
 
 
 def test_a_call_is_logged_step_by_step_and_tagged(builder: AgentBuilder, lines: list[str]):
-    log = CallLog("3f2a9c11-aaaa", builder.config)
+    log = call_log("3f2a9c11-aaaa", builder.config)
     builder.on_transition = log.transition
     flow_manager = FakeFlowManager()
 
@@ -54,10 +78,14 @@ def test_a_call_is_logged_step_by_step_and_tagged(builder: AgentBuilder, lines: 
         "  in 'n2' · end node, the call ends after this reply · state: {'name': 'Ana'}",
         "■ finished at end node 'n2' after 2 steps · path: n0 → n1 → n2 · state: {'name': 'Ana'}",
     ]
+    # Every event also reached the recorder the log owns: that's what gets stored.
+    record = log.record()
+    assert [e["type"] for e in record.events] == ["started", "transition", "transition", "ended"]
+    assert (record.outcome, record.path) == ("completed", ["n0", "n1", "n2"])
 
 
 def test_a_caller_leaving_mid_flow_says_where(builder: AgentBuilder, lines: list[str]):
-    log = CallLog(None, builder.config)
+    log = call_log(None, builder.config)
     log.started()
     log.ended({})
     assert lines[-1].endswith("✕ caller left in 'n0' (not an end node) after 0 steps · path: n0 · state: {}")
@@ -67,7 +95,7 @@ def test_improvising_in_a_node_is_flagged_with_what_the_ways_out_need(lines: lis
     agent = make_agent("Desk", nodes=2)
     agent["nodes"][0]["edges"][0]["properties"] = {"employee_id": {"type": "string"}}
     agent["nodes"][0]["edges"][0]["required"] = ["employee_id"]
-    log = CallLog("abcdef00", AgentBuilder.from_dict(agent).config)
+    log = call_log("abcdef00", AgentBuilder.from_dict(agent).config)
     log.started()
     log.bot_said("What's your employee ID?")
     log.caller_said("I don't know.")
@@ -88,7 +116,7 @@ def test_improvising_in_a_node_is_flagged_with_what_the_ways_out_need(lines: lis
 
 
 def test_moving_on_resets_the_reply_count(builder: AgentBuilder, lines: list[str]):
-    log = CallLog("abcdef00", builder.config)
+    log = call_log("abcdef00", builder.config)
     log.started()
     log.bot_said("one")
     log.bot_said("two")

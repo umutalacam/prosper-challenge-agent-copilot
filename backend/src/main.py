@@ -33,9 +33,17 @@ from api.agents.repository import AgentNotFound, VersionConflict
 from api.agents.service import InvalidAgent
 from api.agents.routes import router as agents_router
 from api.bot.routes import CLIENT_PATH, router as bot_router, webrtc_router
+from api.calls.repository import CallNotFound
+from api.calls.routes import router as calls_router
 from api.copilot.routes import router as copilot_router
 from config import BACKEND_DIR
-from dependencies import get_agent_repository, get_agent_service, get_bot_service
+from dependencies import (
+    get_agent_repository,
+    get_agent_service,
+    get_bot_service,
+    get_call_record_service,
+    get_call_repository,
+)
 
 # OPENAI_API_KEY (voice pipeline + copilot), ELEVENLABS_API_KEY (voice pipeline).
 load_dotenv(BACKEND_DIR / ".env", override=True)
@@ -43,44 +51,77 @@ load_dotenv(BACKEND_DIR / ".env", override=True)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Open the database (schema + seed) at startup instead of on the first request.
-    # Honors a test's override, so tests never touch the real database file.
+    """Open the databases at startup instead of on the first request (honoring a
+    test's overrides, so tests never touch the real files), and hang up calls in
+    progress at shutdown.
+
+    :param app: The app starting up.
+    """
     repository = app.dependency_overrides.get(get_agent_repository, get_agent_repository)()
-    # The same cached instance the routes get through Depends.
-    bot = get_bot_service(get_agent_service(repository))
+    call_repository = app.dependency_overrides.get(get_call_repository, get_call_repository)()
+    # The same cached instances the routes get through Depends. Keyword arguments,
+    # as FastAPI passes them: lru_cache keys f(x) and f(name=x) apart.
+    agents = get_agent_service(repository=repository)
+    call_records = get_call_record_service(repository=call_repository, agents=agents)
+    bot = get_bot_service(agents=agents, call_records=call_records)
     yield
     await bot.close()  # hang up calls in progress
 
 
 def create_app() -> FastAPI:
+    """The API and the voice bot: routers, error mapping, and the prebuilt voice client at /client.
+
+    :return: The configured app.
+    """
     app = FastAPI(title="Prosper Agent API", lifespan=lifespan)
     _register_error_handlers(app)
     app.include_router(agents_router)
     app.include_router(bot_router)
+    app.include_router(calls_router)
     app.include_router(copilot_router)
     app.include_router(webrtc_router)
     app.mount(CLIENT_PATH.rstrip("/"), PipecatPrebuiltUI)
 
     @app.get("/", include_in_schema=False)
     def root() -> RedirectResponse:
+        """:return: A redirect to the voice client."""
         return RedirectResponse(CLIENT_PATH)
 
     return app
 
 
 def _register_error_handlers(app: FastAPI) -> None:
-    """Map domain errors to HTTP responses, in one place."""
+    """Map domain errors to HTTP responses, in one place.
+
+    :param app: The app to register the handlers on.
+    """
 
     @app.exception_handler(AgentNotFound)
-    async def not_found(_: Request, exc: AgentNotFound) -> JSONResponse:
+    @app.exception_handler(CallNotFound)
+    async def not_found(_: Request, exc: AgentNotFound | CallNotFound) -> JSONResponse:
+        """A missing agent or call is a 404.
+
+        :param exc: The error; its message is the detail.
+        :return: The 404 response.
+        """
         return JSONResponse({"detail": str(exc)}, status_code=404)
 
     @app.exception_handler(InvalidAgent)
     async def invalid(_: Request, exc: InvalidAgent) -> JSONResponse:
+        """An agent AgentBuilder rejects is a 422.
+
+        :param exc: The error; its message is the detail.
+        :return: The 422 response.
+        """
         return JSONResponse({"detail": str(exc)}, status_code=422)
 
     @app.exception_handler(VersionConflict)
     async def conflict(_: Request, exc: VersionConflict) -> JSONResponse:
+        """A save based on a stale version is a 409, with the current version.
+
+        :param exc: The error, carrying the current version.
+        :return: The 409 response.
+        """
         return JSONResponse(
             {
                 "detail": "This agent was changed elsewhere since you opened it. "

@@ -1,0 +1,196 @@
+#
+# CallRepository — stored voice calls (SQLite, the `calls` table in
+# config/schema.sql, in the same database as the agents). A call is written once,
+# when it ends; rows are never updated.
+#
+
+from __future__ import annotations
+
+import json
+import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import Any, Literal
+
+from config import SCHEMA_SQL
+
+Event = dict[str, Any]  # one timeline entry; "type" says which (see api/calls/recorder.py)
+
+# How a call ended (CallRecorder.outcome_of; "error" when the pipeline raised).
+Outcome = Literal["completed", "abandoned", "not_started", "error"]
+
+
+@dataclass(frozen=True)
+class CallRecord:
+    id: str
+    agent_id: str | None  # None: the call ran the AGENT_FLOW file, not a saved agent
+    agent_version: int | None
+    agent_name: str
+    started_at: datetime
+    ended_at: datetime
+    outcome: Outcome
+    end_node: str | None
+    path: list[str]
+    final_state: dict[str, Any]
+    events: list[Event]
+
+    @property
+    def duration_ms(self) -> int:
+        """How long the call lasted, in milliseconds."""
+        return CallRecord.milliseconds_between(self.started_at, self.ended_at)
+
+    @staticmethod
+    def milliseconds_between(started_at: datetime, ended_at: datetime) -> int:
+        """The time between two moments, in whole milliseconds.
+
+        :param started_at: The earlier moment.
+        :param ended_at: The later moment.
+        :return: The difference, rounded.
+        """
+        return round((ended_at - started_at).total_seconds() * 1000)
+
+    @property
+    def transcript(self) -> list[Event]:
+        """What was said, in order, taken from the caller and bot events.
+
+        :return: One ``{speaker, node, text, at_ms}`` per turn, with
+            ``interrupted: True`` on bot turns the caller cut off.
+        """
+        return [
+            {"speaker": e["type"], "node": e["node"], "text": e["text"], "at_ms": e["at_ms"]}
+            | ({"interrupted": True} if e.get("interrupted") else {})
+            for e in self.events
+            if e["type"] in ("caller", "bot")
+        ]
+
+
+@dataclass(frozen=True)
+class CallSummary:
+    id: str
+    agent_version: int | None
+    started_at: datetime
+    duration_ms: int
+    outcome: Outcome
+    end_node: str | None
+    path: list[str]
+    stuck_nodes: list[str]  # nodes where the bot improvised (a "stuck" event)
+
+
+class CallNotFound(Exception):
+    def __init__(self, call_id: str) -> None:
+        """:param call_id: The id that matched no stored call."""
+        super().__init__(f"Call '{call_id}' not found.")
+
+
+class CallRepository:
+    """A short-lived connection per call, like AgentRepository, so one instance can be
+    shared across FastAPI's worker threads and the voice bot's save thread."""
+
+    def __init__(self, path: str | Path) -> None:
+        """Open (creating if needed) the database and apply schema.sql.
+
+        :param path: The SQLite file; the agents' database.
+        """
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self._connect() as conn:
+            conn.executescript(SCHEMA_SQL.read_text())
+
+    def save(self, record: CallRecord) -> None:
+        """Store a finished call.
+
+        :param record: The call; its id must be new.
+        """
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO calls (id, agent_id, agent_version, agent_name, started_at, ended_at,"
+                " outcome, end_node, path, final_state, events)"
+                " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    record.id,
+                    record.agent_id,
+                    record.agent_version,
+                    record.agent_name,
+                    record.started_at.isoformat(timespec="milliseconds"),
+                    record.ended_at.isoformat(timespec="milliseconds"),
+                    record.outcome,
+                    record.end_node,
+                    json.dumps(record.path),
+                    json.dumps(record.final_state),
+                    json.dumps(record.events),
+                ),
+            )
+
+    def list_for_agent(self, agent_id: str, limit: int = 50) -> list[CallSummary]:
+        """An agent's calls, newest first, without their timelines.
+
+        :param agent_id: The agent whose calls to list.
+        :param limit: At most this many calls.
+        :return: The calls, with the nodes each got stuck in.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, agent_version, started_at, ended_at, outcome, end_node, path,"
+                " (SELECT json_group_array(DISTINCT json_extract(value, '$.node'))"
+                "    FROM json_each(calls.events)"
+                "   WHERE json_extract(value, '$.type') = 'stuck') AS stuck_nodes"
+                " FROM calls WHERE agent_id = ? ORDER BY started_at DESC LIMIT ?",
+                (agent_id, limit),
+            ).fetchall()
+        return [
+            CallSummary(
+                id=r["id"],
+                agent_version=r["agent_version"],
+                started_at=datetime.fromisoformat(r["started_at"]),
+                duration_ms=CallRecord.milliseconds_between(
+                    datetime.fromisoformat(r["started_at"]), datetime.fromisoformat(r["ended_at"])
+                ),
+                outcome=r["outcome"],
+                end_node=r["end_node"],
+                path=json.loads(r["path"]),
+                stuck_nodes=json.loads(r["stuck_nodes"]),
+            )
+            for r in rows
+        ]
+
+    def get(self, call_id: str) -> CallRecord:
+        """One stored call in full.
+
+        :param call_id: The call's id.
+        :return: The call, with its timeline and final state.
+        :raises CallNotFound: If there's no such call.
+        """
+        with self._connect() as conn:
+            row = conn.execute("SELECT * FROM calls WHERE id = ?", (call_id,)).fetchone()
+        if row is None:
+            raise CallNotFound(call_id)
+        return CallRecord(
+            id=row["id"],
+            agent_id=row["agent_id"],
+            agent_version=row["agent_version"],
+            agent_name=row["agent_name"],
+            started_at=datetime.fromisoformat(row["started_at"]),
+            ended_at=datetime.fromisoformat(row["ended_at"]),
+            outcome=row["outcome"],
+            end_node=row["end_node"],
+            path=json.loads(row["path"]),
+            final_state=json.loads(row["final_state"]),
+            events=json.loads(row["events"]),
+        )
+
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        """A connection for one operation, closed afterwards. Autocommit, foreign keys on.
+
+        :return: The open connection, while the ``with`` block runs.
+        """
+        conn = sqlite3.connect(self.path, timeout=5.0, isolation_level=None)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        try:
+            yield conn
+        finally:
+            conn.close()

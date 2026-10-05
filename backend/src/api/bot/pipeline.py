@@ -6,6 +6,7 @@
 #   agent JSON  ->  AgentBuilder  ->  Pipecat Flows graph  ->  FlowManager
 #
 
+import asyncio
 import os
 
 from loguru import logger
@@ -28,8 +29,10 @@ from pipecat.workers.runner import WorkerRunner
 from pipecat_flows import FlowManager
 
 from agent_builder import AgentBuilder
-
-from .call_log import CallLog
+from api.agents.repository import AgentVersion
+from api.bot.call_log import CallLog
+from api.calls.recorder import CallRecorder
+from api.calls.service import CallRecordService
 
 transport_params = {
     "webrtc": lambda: TransportParams(audio_in_enabled=True, audio_out_enabled=True),
@@ -37,8 +40,21 @@ transport_params = {
 
 
 async def run_bot(
-    transport: BaseTransport, runner_args: RunnerArguments, builder: AgentBuilder
+    transport: BaseTransport,
+    runner_args: RunnerArguments,
+    builder: AgentBuilder,
+    version: AgentVersion | None,
+    call_records: CallRecordService,
 ) -> None:
+    """Run one call: the voice pipeline driven by the agent's node graph, until the
+    caller hangs up. The call is logged as it goes and stored when it ends.
+
+    :param transport: The call's WebRTC transport.
+    :param runner_args: The session (id, idle timeout, signal handling).
+    :param builder: The compiled agent.
+    :param version: The saved agent version it is; None for the AGENT_FLOW file.
+    :param call_records: Where the finished call is stored.
+    """
     config = builder.config
     logger.info(f"Starting '{config.name}' with {len(config.nodes)} nodes")
 
@@ -80,28 +96,52 @@ async def run_bot(
         transport=transport,
     )
 
-    # The call's path through the graph, logged at every step (see call_log.py).
-    call_log = CallLog(runner_args.session_id, config)
+    # The call's walk through the graph: CallLog logs every step and feeds the
+    # CallRecorder it owns, whose timeline is stored when the call ends.
+    call_log = CallLog(
+        CallRecorder(runner_args.session_id, config, version)
+    )
     builder.on_transition = call_log.transition
 
     # What was said, turn by turn, so the log shows the model improvising in a node.
     @context_aggregator.user().event_handler("on_user_turn_stopped")
     async def on_user_turn_stopped(aggregator, strategy, message):
+        """A caller turn ended: log and record what they said.
+
+        :param aggregator: The user context aggregator.
+        :param strategy: What ended the turn.
+        :param message: The turn, with its transcribed text.
+        """
         if message.content:
             call_log.caller_said(message.content)
 
     @context_aggregator.assistant().event_handler("on_assistant_turn_stopped")
     async def on_assistant_turn_stopped(aggregator, message):
+        """A bot turn ended: log and record what it said.
+
+        :param aggregator: The assistant context aggregator.
+        :param message: The turn, with its text and whether it was interrupted.
+        """
         if message.content:
             call_log.bot_said(message.content, interrupted=message.interrupted)
 
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
+        """The caller connected: start the flow at the agent's start node.
+
+        :param transport: The call's transport.
+        :param client: The connected client.
+        """
         call_log.started()
         await flow_manager.initialize(builder.build_initial_node())
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
+        """The caller hung up: stop the pipeline (which ends and stores the call).
+
+        :param transport: The call's transport.
+        :param client: The client that left.
+        """
         logger.debug("Client disconnected")
         await worker.cancel()
 
@@ -109,11 +149,39 @@ async def run_bot(
     await runner.add_workers(worker)
     try:
         await runner.run()
+    except Exception as error:
+        call_log.failed(error)
+        raise
     finally:
         call_log.ended(flow_manager.state)
+        await _save(call_records, call_log)
 
 
-async def run_call(runner_args: RunnerArguments, builder: AgentBuilder) -> None:
-    """One call: build the transport for its WebRTC connection, then run the pipeline."""
+async def _save(call_records: CallRecordService, call_log: CallLog) -> None:
+    """Store the finished call, off the event loop. Never raises: a storage failure
+    must not break hanging up.
+
+    :param call_records: Where calls are stored.
+    :param call_log: The finished call's log, holding its record.
+    """
+    try:
+        await asyncio.to_thread(call_records.save, call_log.record())
+    except Exception:
+        logger.exception(f"Couldn't save call {call_log.id}")
+
+
+async def run_call(
+    runner_args: RunnerArguments,
+    builder: AgentBuilder,
+    version: AgentVersion | None,
+    call_records: CallRecordService,
+) -> None:
+    """One call: build the transport for its WebRTC connection, then run the pipeline.
+
+    :param runner_args: The session, with its WebRTC connection.
+    :param builder: The compiled agent.
+    :param version: The saved agent version it is; None for the AGENT_FLOW file.
+    :param call_records: Where the finished call is stored.
+    """
     transport = await create_transport(runner_args, transport_params)
-    await run_bot(transport, runner_args, builder)
+    await run_bot(transport, runner_args, builder, version, call_records)
