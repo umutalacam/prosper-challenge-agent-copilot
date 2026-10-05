@@ -31,6 +31,8 @@ export interface CopilotGroupFix {
   call_count: number;
   /** What the calls' analyses say caused it. */
   causes: string[];
+  /** The fix proposed so far, sent back with each reply while the user talks it over. */
+  proposal?: string;
 }
 
 export interface CopilotQuestion {
@@ -53,5 +55,7 @@ export type CopilotEvent =
   | { type: "agent"; agent: unknown }
   | { type: "reply"; text: string }
   | { type: "questions"; questions: CopilotQuestion[] }
+  /** A group fix still being talked over: the fix as it stands; send it back with the next reply. */
+  | { type: "proposal"; suggestion: string }
   | { type: "error"; message: string }
   | { type: "done" };

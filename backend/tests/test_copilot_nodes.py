@@ -11,6 +11,7 @@ from api.copilot.model import CopilotError, CopilotModel
 from api.copilot.nodes import (
     ExecutorNode,
     ExplainerNode,
+    DiscussFixNode,
     FixNode,
     GroupFixNode,
     PlannerNode,
@@ -265,7 +266,7 @@ GROUP = {
 }
 
 
-def test_group_fix_proposes_one_fix_and_asks_the_user():
+def test_group_fix_proposes_one_fix_in_conversation():
     answer = {"reason": "r", "common_cause": "greeting only handles bookings.", "suggestion": "Add an action."}
     node, model = make(GroupFixNode, reply(json.dumps(answer)))
     t = turn(group_fix=GROUP)
@@ -276,9 +277,37 @@ def test_group_fix_proposes_one_fix_and_asks_the_user():
     assert "- No action for insurance questions." in context
     assert events[1:] == [
         {"type": "note", "text": "Common cause: greeting only handles bookings."},
-        {
-            "type": "questions",
-            "questions": [{"question": "Suggested fix: Add an action. Apply it?", "options": ["Apply this fix"]}],
-        },
+        {"type": "reply", "text": "I'd suggest: Add an action.\n\nWant me to apply it, or would you change something?"},
+        {"type": "proposal", "suggestion": "Add an action."},
     ]
-    assert node.next(t) is None  # the user's answer is the next turn
+    assert node.next(t) is None  # the user replies; discuss_fix takes it from there
+
+
+def discuss(answer: dict) -> tuple[Turn, list, ScriptedModel, DiscussFixNode]:
+    """Run discuss_fix on GROUP with a proposal open.
+
+    :param answer: The model's decision.
+    :return: The turn, its events, the model and the node.
+    """
+    node, model = make(DiscussFixNode, reply(json.dumps({"reason": "r", **answer})))
+    t = turn(group_fix=GROUP | {"proposal": "Add an action."})
+    return t, run_node(node, t), model, node
+
+
+def test_discuss_fix_answers_and_revises_until_the_user_agrees():
+    t, events, model, node = discuss(
+        {"agreed": False, "suggestion": "Add an action, and mention opening hours.", "reply": "Good idea. Apply it?"}
+    )
+    assert "The fix proposed so far: Add an action." in model.requests[0]["messages"][-1]["content"]
+    assert events[1:] == [
+        {"type": "reply", "text": "Good idea. Apply it?"},
+        {"type": "proposal", "suggestion": "Add an action, and mention opening hours."},
+    ]
+    assert node.next(t) is None and t.intent is None
+
+
+def test_discuss_fix_builds_the_agreed_fix():
+    t, events, _, node = discuss({"agreed": True, "suggestion": "Add an action.", "reply": ""})
+    assert (t.intent, t.goal) == ("build", "Apply the fix agreed with the user: Add an action.")
+    assert events[1:] == [{"type": "note", "text": f"Goal: {t.goal}"}]  # no proposal: the conversation closes
+    assert node.next(t) == "planner"

@@ -4,16 +4,19 @@
 # only as CopilotNode; which node follows which is each node's own `next`.
 #
 # A turn starts at resolve_intent (a typed prompt), at fix (a finding from a
-# call's AI analysis, sent with "Fix with copilot"), or at group_fix (an issue
-# across calls, from the Issues pane: it proposes one fix and asks the user, whose
-# answer comes back as the next turn and builds through resolve_intent).
+# call's AI analysis, sent with "Fix with copilot"), at group_fix (an issue across
+# calls, from the Issues pane: it proposes one fix and ends the turn), or at
+# discuss_fix (the user's reply while that proposal is open: it builds once they
+# agree, or answers and revises the proposal).
 #
 #                  ┌── clarify ──▶ (questions, turn ends)
 # resolve_intent ──┼── build ──▶ planner ──▶ executor ──▶ reviewer ──▶ wrap_up
 #                  │                ▲  ▲                     │
 #                  │      fix ──────┘  └──── issues ─────────┘
 #                  └── explain ──▶ explainer ──▶ wrap_up
-# group_fix ──▶ (a proposed fix as a question, turn ends)
+# group_fix ──▶ (a proposed fix, turn ends)
+# discuss_fix ──┬── agreed ──▶ planner ──▶ …
+#               └── (answers, revises the proposal; turn ends)
 #
 # To add a node: subclass DecisionNode / ToolNode / TextNode in nodes/, add its
 # prompt as config/copilot/<name>.md, register it in build_graph, and return its
@@ -27,6 +30,7 @@ from api.copilot.nodes import (
     CopilotNode,
     ExecutorNode,
     ExplainerNode,
+    DiscussFixNode,
     FixNode,
     GroupFixNode,
     PlannerNode,
@@ -65,6 +69,7 @@ def build_graph(model: CopilotModel, prompts: PromptLibrary) -> CopilotGraph:
         ResolveIntentNode(model, prompts),
         FixNode(model, prompts),
         GroupFixNode(model, prompts),
+        DiscussFixNode(model, prompts),
         PlannerNode(model, prompts),
         ExecutorNode(model, prompts),
         ReviewerNode(model, prompts),

@@ -102,16 +102,27 @@ describe("useCopilot", () => {
     expect(sent.messages).toEqual([{ role: "user", content: prompt }]);
   });
 
-  it("starts a group fix turn: sends the group with a label prompt", async () => {
-    const fetchMock = vi.fn(() =>
-      Promise.resolve(
-        streamResponse([
-          { type: "note", text: "Common cause: greeting only handles bookings." },
-          { type: "questions", questions: [{ question: "Suggested fix: Add one. Apply it?" }] },
-          { type: "done" },
-        ]),
-      ),
-    );
+  it("talks a group fix over until it's agreed, then sends plain prompts again", async () => {
+    const replies: CopilotEvent[][] = [
+      [
+        { type: "note", text: "Common cause: greeting only handles bookings." },
+        { type: "reply", text: "I'd suggest: Add an action. Want me to apply it?" },
+        { type: "proposal", suggestion: "Add an action." },
+        { type: "done" },
+      ],
+      [
+        { type: "reply", text: "Good idea: with a handoff. Apply it?" },
+        { type: "proposal", suggestion: "Add an action with a handoff." },
+        { type: "done" },
+      ],
+      [
+        { type: "note", text: "Goal: Apply the fix…" },
+        { type: "reply", text: "Done." },
+        { type: "done" },
+      ],
+      [{ type: "reply", text: "Hi." }, { type: "done" }],
+    ];
+    const fetchMock = vi.fn(() => Promise.resolve(streamResponse(replies.shift() ?? [])));
     vi.stubGlobal("fetch", fetchMock);
     const { result } = renderHook(() => useCopilot({ getAgent: () => agent, onAgent: vi.fn() }));
     const group = {
@@ -121,18 +132,35 @@ describe("useCopilot", () => {
       call_count: 3,
       causes: ["No action for insurance questions."],
     };
+    const sent = (n: number) =>
+      JSON.parse(requestBody(fetchMock, n)) as {
+        messages: { content: string }[];
+        group_fix?: unknown;
+      };
 
     await act(() => result.current.fixGroup(group));
-
     const prompt = 'Fix "Stuck in greeting" across 3 calls (v4).';
-    expect(result.current.turns[0]).toMatchObject({ prompt, group_fix: group });
-    expect(result.current.turns[0]?.questions).toHaveLength(1);
-    const sent = JSON.parse(requestBody(fetchMock, 0)) as {
-      messages: unknown[];
-      group_fix: unknown;
-    };
-    expect(sent.group_fix).toEqual(group);
-    expect(sent.messages).toEqual([{ role: "user", content: prompt }]);
+    expect(result.current.turns[0]).toMatchObject({
+      prompt,
+      group_fix: group,
+      proposal: "Add an action.",
+    });
+    expect(sent(0).group_fix).toEqual(group);
+    expect(sent(0).messages).toEqual([{ role: "user", content: prompt }]);
+
+    // A reply talks it over: it goes back with the proposal.
+    await act(() => result.current.send("What about a handoff?"));
+    expect(sent(1).group_fix).toEqual({ ...group, proposal: "Add an action." });
+    expect(result.current.turns[1]?.proposal).toBe("Add an action with a handoff.");
+
+    // Agreeing builds it, with the revised proposal; no proposal comes back.
+    await act(() => result.current.send("Yes, go ahead"));
+    expect(sent(2).group_fix).toEqual({ ...group, proposal: "Add an action with a handoff." });
+    expect(result.current.turns[2]?.proposal).toBeUndefined();
+
+    // The conversation is closed: the next prompt is an ordinary one.
+    await act(() => result.current.send("Hello"));
+    expect(sent(3).group_fix).toBeUndefined();
   });
 
   it("sends earlier turns, questions included, as history", async () => {

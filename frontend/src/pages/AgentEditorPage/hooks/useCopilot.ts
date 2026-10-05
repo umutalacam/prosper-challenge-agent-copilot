@@ -28,6 +28,10 @@ export interface CopilotTurn {
   fix?: CopilotFix;
   /** A group fix turn: the issue across calls, shown as a card instead of the prompt. */
   group_fix?: CopilotGroupFix;
+  /** A reply in a group fix conversation: the issue being talked over (not shown). */
+  discussing?: CopilotGroupFix;
+  /** The fix this turn proposed, still open: the next reply talks it over. */
+  proposal?: string;
   status: "running" | "done" | "stopped" | "error";
   /** What it's doing right now, while running. */
   activity: string | null;
@@ -65,6 +69,16 @@ export function groupFixPrompt(group: CopilotGroupFix): string {
 /** What a turn starts from besides its prompt: a finding or an issue group to fix. */
 export type TurnContext = Pick<CopilotTurn, "fix" | "group_fix">;
 
+/**
+ * The group fix still being talked over, if the last turn left one open: the issue
+ * and the fix proposed so far. A reply then goes back with it, to discuss_fix.
+ */
+function openProposal(turns: readonly CopilotTurn[]): CopilotGroupFix | undefined {
+  const last = turns.at(-1);
+  const group = last?.group_fix ?? last?.discussing;
+  return last?.proposal && group ? { ...group, proposal: last.proposal } : undefined;
+}
+
 /** What the copilot said in a turn, as history for the next one. */
 function assistantText(turn: CopilotTurn): string {
   const questions = turn.questions?.map((q) => `- ${q.question}`).join("\n");
@@ -95,6 +109,8 @@ function applyEvent(turn: CopilotTurn, event: CopilotEvent): CopilotTurn {
       return { ...turn, reply: event.text };
     case "questions":
       return { ...turn, questions: event.questions };
+    case "proposal":
+      return { ...turn, proposal: event.suggestion };
     case "error":
       return { ...turn, status: "error", error: event.message };
     case "done":
@@ -135,12 +151,16 @@ export function useCopilot({ getAgent, onAgent, onTurnEnd }: UseCopilotOptions) 
       const controller = new AbortController();
       abortRef.current = controller;
       const messages = [...historyOf(turnsRef.current), { role: "user" as const, content: text }];
+      // A plain reply while a group fix is proposed talks it over; a new fix starts afresh.
+      const discussing =
+        context.fix || context.group_fix ? undefined : openProposal(turnsRef.current);
       setTurns((all) => [
         ...all,
         {
           id: all.length + 1,
           prompt: text,
           ...context,
+          ...(discussing && { discussing }),
           status: "running",
           activity: "Sending…",
           steps: [],
@@ -150,7 +170,12 @@ export function useCopilot({ getAgent, onAgent, onTurnEnd }: UseCopilotOptions) 
       let changed = false;
       try {
         await streamCopilotTurn(
-          { agent: agentDocument(getAgent()), messages, ...context },
+          {
+            agent: agentDocument(getAgent()),
+            messages,
+            ...context,
+            ...(discussing && { group_fix: discussing }),
+          },
           (event) => {
             if (event.type === "agent") {
               changed = true;

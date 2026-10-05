@@ -4,8 +4,9 @@
 # understand the request, then plan → build → review → wrap up, explain, or ask
 # the user. A fix turn (a finding from a call's AI analysis) starts at the fix
 # node instead and goes straight to plan → build → review → wrap up. A group fix (an
-# issue across calls) starts at group_fix: it proposes one fix for all of them and
-# asks the user, whose answer is the next turn's build. Stateless:
+# issue across calls) starts at group_fix, which proposes one fix for all of them;
+# while that proposal is open, the browser sends it back with each reply and the turn
+# starts at discuss_fix: talk it over, or build once the user agrees. Stateless:
 # the browser keeps the conversation and sends it each turn.
 #
 # Events, in the order they can happen:
@@ -15,6 +16,7 @@
 #   {"type": "agent", "agent": {...}}                    the agent after that edit
 #   {"type": "reply", "text": "..."}                     the turn's closing message
 #   {"type": "questions", "questions": [{"question": "...", "options": [...]}]}
+#   {"type": "proposal", "suggestion": "..."}            a group fix still being talked over
 #   {"type": "error", "message": "..."}
 #   {"type": "done"}
 #
@@ -47,7 +49,11 @@ class CopilotService:
         the finding as text). `fix`: the finding to fix, which starts the turn at the fix node.
         `group_fix`: an issue across calls, which starts it at the group_fix node."""
         turn = Turn(AgentEdits(agent), messages, fix=fix, group_fix=group_fix)
-        start = "fix" if fix else "group_fix" if group_fix else None
+        start = None  # resolve_intent
+        if fix:
+            start = "fix"
+        elif group_fix:
+            start = "discuss_fix" if group_fix.get("proposal") else "group_fix"
         try:
             async for event in self._graph.run(turn, start=start):
                 yield event

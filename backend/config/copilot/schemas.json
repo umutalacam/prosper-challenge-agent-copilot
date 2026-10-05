@@ -75,5 +75,19 @@
     },
     "required": ["reason", "common_cause", "suggestion"],
     "additionalProperties": false
+  },
+  "discuss_fix": {
+    "type": "object",
+    "properties": {
+      "reason": { "type": "string", "description": "One sentence: what the user wants now" },
+      "agreed": { "type": "boolean", "description": "The user clearly wants the fix applied now" },
+      "suggestion": {
+        "type": "string",
+        "description": "The fix as it stands now (final when agreed), a concrete edit naming the node"
+      },
+      "reply": { "type": "string", "description": "Your answer to the user when not agreed; empty when agreed" }
+    },
+    "required": ["reason", "agreed", "suggestion", "reply"],
+    "additionalProperties": false
   }
 }

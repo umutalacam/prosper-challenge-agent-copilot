@@ -158,23 +158,43 @@ def test_a_fix_starts_at_the_fix_node_and_runs_the_build_loop():
     assert events[-2] == {"type": "reply", "text": "Added a goodbye so the call can end."}
 
 
-def test_a_group_fix_proposes_a_fix_and_ends_with_a_question():
-    group = {
-        "kind": "stuck",
-        "node": "greeting",
-        "version": 2,
-        "call_count": 3,
-        "causes": ["No way out."],
-    }
-    answer = {"reason": "r", "common_cause": "greeting has no action.", "suggestion": "Add a goodbye action."}
-    model = ScriptedModel(reply(json.dumps(answer)))
+GROUP = {"kind": "stuck", "node": "greeting", "version": 2, "call_count": 3, "causes": ["No way out."]}
+
+
+def group_turn(model: ScriptedModel, group: dict, text: str) -> list[dict]:
+    """:param model: The scripted client.
+    :param group: The ``group_fix`` sent.
+    :param text: The user's message.
+    :return: The turn's events.
+    """
     service = CopilotService(model, "test-model", COPILOT_DIR)
 
     async def collect():
-        messages = [{"role": "user", "content": 'Fix "Stuck in greeting" across 3 calls (v2).'}]
-        return [event async for event in service.run_turn(AGENT, messages, group_fix=group)]
+        return [event async for event in service.run_turn(AGENT, [{"role": "user", "content": text}], group_fix=group)]
 
-    events = asyncio.run(collect())
-    assert [e["type"] for e in events] == ["activity", "note", "questions", "done"]
-    assert len(model.requests) == 1  # one model call; no edits until the user answers
+    return asyncio.run(collect())
+
+
+def test_a_group_fix_proposes_a_fix_and_leaves_the_conversation_open():
+    answer = {"reason": "r", "common_cause": "greeting has no action.", "suggestion": "Add a goodbye action."}
+    model = ScriptedModel(reply(json.dumps(answer)))
+    events = group_turn(model, GROUP, 'Fix "Stuck in greeting" across 3 calls (v2).')
+    assert [e["type"] for e in events] == ["activity", "note", "reply", "proposal", "done"]
+    assert len(model.requests) == 1  # one model call; nothing is built yet
     assert "# Your step: propose one fix" in model.requests[0]["messages"][0]["content"]
+
+
+def test_a_reply_while_a_fix_is_proposed_is_talked_over_then_built_once_agreed():
+    talk = ScriptedModel(reply(json.dumps({"reason": "r", "agreed": False, "suggestion": "X", "reply": "Hmm?"})))
+    events = group_turn(talk, GROUP | {"proposal": "Add a goodbye action."}, "What about a handoff?")
+    assert [e["type"] for e in events] == ["activity", "reply", "proposal", "done"]
+    assert "# Your step: talk over the proposed fix" in talk.requests[0]["messages"][0]["content"]
+
+    agreed = {"reason": "r", "agreed": True, "suggestion": "Add a goodbye action.", "reply": ""}
+    build = ScriptedModel(reply(json.dumps(agreed)), *build_responses(review()), reply("Added the goodbye."))
+    events = group_turn(build, GROUP | {"proposal": "Add a goodbye action."}, "Yes, go ahead")
+    assert [e["text"] for e in events if e["type"] == "activity"] == [
+        "Thinking it over…", "Planning…", "Building…", "Building…", "Building…", "Reviewing…", "Wrapping up…",
+    ]
+    assert not any(e["type"] == "proposal" for e in events)  # built: the conversation closes
+    assert events[-2] == {"type": "reply", "text": "Added the goodbye."}

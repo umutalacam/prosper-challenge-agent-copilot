@@ -45,6 +45,8 @@ class CopilotGroupFix(BaseModel):
     call_count: int = Field(ge=1)
     causes: list[str] = Field(min_length=1, max_length=50)
     """What the calls' AI analyses say caused it, one per call."""
+    proposal: str | None = None
+    """The fix proposed so far, while the user talks it over (the `proposal` event, sent back)."""
 
 
 class CopilotTurnRequest(BaseModel):

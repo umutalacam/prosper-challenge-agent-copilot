@@ -329,7 +329,10 @@ export function AgentEditor({
                 onSend={sendToCopilot}
                 onStop={copilot.stop}
                 running={copilot.running}
-                awaitingAnswer={lastTurn?.status === "done" && Boolean(lastTurn.questions?.length)}
+                awaitingAnswer={
+                  lastTurn?.status === "done" &&
+                  (Boolean(lastTurn.questions?.length) || Boolean(lastTurn.proposal))
+                }
               />
             }
           />

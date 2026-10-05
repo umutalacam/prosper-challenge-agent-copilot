@@ -6,4 +6,4 @@ The same problem happened in several real calls to this agent, at the same node.
 - Propose one fix for the agent that removes that cause for all of these calls: a concrete edit naming the node and what to change (a task message, an action or one of its fields, an edge). One change is better than a patch per call.
 - If the causes don't share one, say so as the common cause and propose the single change that helps most of them.
 
-Write for the user, who decides whether to apply it: plain sentences, no lists. Put a one-sentence reason first.
+The user will talk it over with you before anything is built. Write plain sentences, no lists. Put a one-sentence reason first.
