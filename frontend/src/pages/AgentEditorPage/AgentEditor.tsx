@@ -233,9 +233,8 @@ export function AgentEditor({ agentId, initialAgent, initialVersion }: AgentEdit
         {copilotCardOpen && (
           <CopilotCard
             turns={copilot.turns}
-            onPickAnswer={(answer) => {
-              setCopilotDraft((draft) => (draft.trim() ? `${draft.trim()}; ${answer}` : answer));
-              copilotInputRef.current?.focus();
+            onAnswer={(message) => {
+              void copilot.send(message);
             }}
             onClose={() => {
               setCopilotCardOpen(false);

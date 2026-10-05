@@ -9,7 +9,7 @@ export interface CopilotPromptProps {
   onSend: () => void;
   onStop: () => void;
   running: boolean;
-  /** The copilot asked something: the box invites an answer. */
+  /** The copilot asked something (answered in its card): the box offers a new request instead. */
   awaitingAnswer: boolean;
   ref?: Ref<HTMLTextAreaElement>;
 }
@@ -52,7 +52,9 @@ export function CopilotPrompt({
         value={value}
         aria-label="Message the copilot"
         placeholder={
-          awaitingAnswer ? "Answer the copilot…" : "Ask the copilot to build or change this agent…"
+          awaitingAnswer
+            ? "Answer in the card, or ask for something else…"
+            : "Ask the copilot to build or change this agent…"
         }
         onChange={(e) => {
           onChange(e.target.value);

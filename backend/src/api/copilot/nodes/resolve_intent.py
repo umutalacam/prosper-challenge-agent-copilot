@@ -24,12 +24,7 @@ class ResolveIntentNode(DecisionNode):
             return [{"type": "note", "text": f"Goal: {turn.goal}"}] if turn.goal else []
         if turn.intent != "clarify":
             return []
-        turn.questions = [
-            # The editor treats missing options as "no suggestions"; strict mode sends [].
-            {"question": q["question"], **({"options": q["options"]} if q.get("options") else {})}
-            for q in answer.get("questions") or []
-            if q.get("question")
-        ]
+        turn.questions = [_question(q) for q in answer.get("questions") or [] if q.get("question")]
         return [{"type": "questions", "questions": turn.questions}] if turn.questions else []
 
     def next(self, turn: Turn) -> str | None:
@@ -37,3 +32,14 @@ class ResolveIntentNode(DecisionNode):
             # Clarify with nothing to ask: answer instead of ending the turn silently.
             return None if turn.questions else "explainer"
         return _NEXT.get(turn.intent or "", "explainer")
+
+
+def _question(q: dict[str, Any]) -> dict[str, Any]:
+    """A question as the editor reads it: options and `multiple` only when they apply
+    (strict mode always sends them, as [] and false)."""
+    question: dict[str, Any] = {"question": q["question"]}
+    if q.get("options"):
+        question["options"] = q["options"]
+        if q.get("multiple"):
+            question["multiple"] = True
+    return question

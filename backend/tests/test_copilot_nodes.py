@@ -105,6 +105,22 @@ def test_resolve_intent_records_the_goal():
     ]
 
 
+def test_resolve_intent_marks_multiple_choice_questions():
+    questions = [
+        {"question": "Which requests should it handle?", "options": ["Booking", "Rescheduling"], "multiple": True},
+        {"question": "What tone?", "options": ["Warm", "Formal"], "multiple": False},
+        {"question": "Anything else?", "options": [], "multiple": True},  # no options: nothing to pick
+    ]
+    node, _ = make(ResolveIntentNode, route("clarify", *questions))
+    t = turn()
+    run_node(node, t)
+    assert t.questions == [
+        {"question": "Which requests should it handle?", "options": ["Booking", "Rescheduling"], "multiple": True},
+        {"question": "What tone?", "options": ["Warm", "Formal"]},
+        {"question": "Anything else?"},
+    ]
+
+
 def test_resolve_intent_passes_every_question_on():
     questions = [{"question": f"Q{i}?", "options": []} for i in range(5)]
     node, _ = make(ResolveIntentNode, route("clarify", *questions))

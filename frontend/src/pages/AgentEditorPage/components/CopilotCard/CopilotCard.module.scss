@@ -189,44 +189,6 @@ $resize-duration: 280ms;
   white-space: pre-wrap;
 }
 
-.questions {
-  @include m.stack($space-3);
-  margin: 0;
-  padding: 0 0 0 $space-5;
-}
-
-.question {
-  font-weight: 600;
-}
-
-.options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $space-1;
-  margin-top: $space-1;
-}
-
-.option {
-  padding: 2px $space-2;
-  border: 1px solid $color-border-strong;
-  border-radius: $radius-pill;
-  background: $color-surface;
-  color: $color-text;
-  font: inherit;
-  font-size: $font-size-sm;
-  cursor: pointer;
-
-  &:hover {
-    border-color: $color-brand;
-    background: $color-brand-soft;
-    color: $color-accent;
-  }
-
-  &:focus-visible {
-    @include m.focus-ring;
-  }
-}
-
 .muted {
   color: $color-text-muted;
   font-size: $font-size-sm;

@@ -19,9 +19,13 @@
               "type": "array",
               "items": { "type": "string" },
               "description": "Two to four short suggested answers, or empty"
+            },
+            "multiple": {
+              "type": "boolean",
+              "description": "True if more than one option can apply at once; false if they are alternatives"
             }
           },
-          "required": ["question", "options"],
+          "required": ["question", "options", "multiple"],
           "additionalProperties": false
         }
       }

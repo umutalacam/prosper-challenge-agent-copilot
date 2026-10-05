@@ -4,12 +4,13 @@ import { CloseIcon, IconButton, SparklesIcon } from "@/shared/ui";
 import type { CopilotTurn } from "../../hooks/useCopilot";
 import { useContentHeight } from "../../hooks/useContentHeight";
 import { useStickToBottom } from "../../hooks/useStickToBottom";
+import { CopilotQuestions } from "../CopilotQuestions/CopilotQuestions";
 import styles from "./CopilotCard.module.scss";
 
 export interface CopilotCardProps {
   turns: CopilotTurn[];
-  /** A suggested answer was picked: it goes into the prompt box. */
-  onPickAnswer: (answer: string) => void;
+  /** The copilot's questions are all answered: the `Q: … / A: …` message to send it. */
+  onAnswer: (message: string) => void;
   onClose: () => void;
 }
 
@@ -17,7 +18,7 @@ export interface CopilotCardProps {
  * The copilot conversation, top-left: the latest prompt, what the copilot is doing
  * and has done, its reply and any questions. Earlier turns fold away.
  */
-export function CopilotCard({ turns, onPickAnswer, onClose }: CopilotCardProps) {
+export function CopilotCard({ turns, onAnswer, onClose }: CopilotCardProps) {
   const [showEarlier, setShowEarlier] = useState(false);
   const latest = turns.at(-1);
   // Follow the copilot's output as it streams in; each new prompt starts following again.
@@ -73,20 +74,14 @@ export function CopilotCard({ turns, onPickAnswer, onClose }: CopilotCardProps) 
             </>
           )}
 
-          <Turn turn={latest} onPickAnswer={onPickAnswer} />
+          <Turn turn={latest} onAnswer={onAnswer} />
         </div>
       </div>
     </section>
   );
 }
 
-function Turn({
-  turn,
-  onPickAnswer,
-}: {
-  turn: CopilotTurn;
-  onPickAnswer: (answer: string) => void;
-}) {
+function Turn({ turn, onAnswer }: { turn: CopilotTurn; onAnswer: (message: string) => void }) {
   return (
     <article className={styles.turn}>
       <p className={styles.prompt}>{turn.prompt}</p>
@@ -125,29 +120,7 @@ function Turn({
         {turn.reply && <p className={styles.reply}>{turn.reply}</p>}
 
         {turn.questions && turn.questions.length > 0 && (
-          <ol className={styles.questions}>
-            {turn.questions.map((q, i) => (
-              <li key={i}>
-                <p className={styles.question}>{q.question}</p>
-                {q.options && q.options.length > 0 && (
-                  <div className={styles.options}>
-                    {q.options.map((option) => (
-                      <button
-                        key={option}
-                        type="button"
-                        className={styles.option}
-                        onClick={() => {
-                          onPickAnswer(option);
-                        }}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </li>
-            ))}
-          </ol>
+          <CopilotQuestions key={turn.id} questions={turn.questions} onSubmit={onAnswer} />
         )}
 
         {turn.status === "stopped" && (

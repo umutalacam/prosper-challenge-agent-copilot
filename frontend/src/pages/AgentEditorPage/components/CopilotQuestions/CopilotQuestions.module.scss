@@ -1,0 +1,126 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.questions {
+  @include m.stack($space-2);
+  padding: $space-3;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-sunken;
+}
+
+.progress {
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+}
+
+.question {
+  font-weight: 600;
+}
+
+.hint {
+  margin-top: -$space-1;
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+}
+
+// Multiple choice: selectable pills; a selected one is filled.
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-2;
+}
+
+.pill {
+  padding: $space-1 $space-3;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-pill;
+  background: $color-surface;
+  color: $color-text;
+  font: inherit;
+  font-size: $font-size-sm;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-brand;
+    background: $color-brand-soft;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.selected,
+.selected:hover {
+  border-color: $color-accent;
+  background: $color-accent;
+  color: $color-text-on-accent;
+}
+
+// Single choice: full-width buttons; a click answers and moves on.
+.choices {
+  @include m.stack($space-1);
+}
+
+.choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-2;
+  width: 100%;
+  padding: $space-2 $space-3;
+  border: 1px solid $color-border-strong;
+  border-radius: $radius-md;
+  background: $color-surface;
+  color: $color-text;
+  font: inherit;
+  font-size: $font-size-sm;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-brand;
+    background: $color-brand-soft;
+    color: $color-accent;
+  }
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+.choiceArrow {
+  color: $color-text-muted;
+
+  .choice:hover & {
+    color: $color-accent;
+  }
+}
+
+// The typed answer on its own line, then the footer with the buttons.
+.answer {
+  @include m.stack($space-2);
+}
+
+.input {
+  width: 100%;
+}
+
+// Footer: separated from the question, Back left, Next / Send pinned right.
+.actions {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding-top: $space-2;
+  border-top: 1px solid $color-border;
+}
+
+.submit {
+  margin-left: auto;
+}
+
+.sent {
+  color: $color-text-muted;
+  font-size: $font-size-sm;
+}

@@ -9,6 +9,8 @@ export interface CopilotQuestion {
   question: string;
   /** Short suggested answers, when the copilot can predict them. */
   options?: string[];
+  /** Several options can apply at once: pick any number (checkboxes), not one. */
+  multiple?: boolean;
 }
 
 /** One line of POST /api/copilot/turns. */

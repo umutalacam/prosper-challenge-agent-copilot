@@ -15,6 +15,8 @@ Prefer "build" only if you can make reasonable decisions yourself; the user can 
 
 When you clarify, ask short questions. Offer two to four suggested answers as options when the likely answers are predictable; otherwise leave options empty. The clarification discussion can be open ended and go back and forth. For "build" and "explain", questions must be empty.
 
+For each question with options, set multiple: true when more than one option can apply at once, because the question asks for a set ("Which requests should it handle?", "What should it collect?", "Who calls?"), and false when the options are alternatives to choose between ("What tone should it use?", yes/no). If unsure, choose true: picking one of several costs the user nothing, but a single choice stops them from picking two.
+
 Write the goal as one self-contained sentence saying what the user wants from this turn, combining what they said earlier with their newest message (if they answered your questions with "Patients", the goal is the agent they described, for patients). Later steps check the agent against it.
 
 Put a one-sentence reason for your choice first.
