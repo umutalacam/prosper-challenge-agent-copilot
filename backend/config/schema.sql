@@ -101,3 +101,10 @@ CREATE TABLE IF NOT EXISTS call_flags (
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS call_flags_by_call ON call_flags (call_id);
+
+-- When the team last looked at an agent's issues (the editor's Issues pane): what
+-- happened after it is "new". One row per agent; no users yet, so it's shared.
+CREATE TABLE IF NOT EXISTS issues_seen (
+    agent_id  TEXT PRIMARY KEY REFERENCES agents (id) ON DELETE CASCADE,
+    seen_at   TEXT NOT NULL
+) STRICT;

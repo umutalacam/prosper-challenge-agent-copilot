@@ -35,6 +35,7 @@ from api.agents.routes import router as agents_router
 from api.bot.routes import CLIENT_PATH, router as bot_router, webrtc_router
 from api.bot.service import NothingDeployed
 from api.calls.repository import CallNotFound
+from api.calls.routes import issues_router
 from api.calls.routes import router as calls_router
 from api.copilot.routes import router as copilot_router
 from config import BACKEND_DIR
@@ -86,6 +87,7 @@ def create_app() -> FastAPI:
     app.include_router(agents_router)
     app.include_router(bot_router)
     app.include_router(calls_router)
+    app.include_router(issues_router)
     app.include_router(copilot_router)
     app.include_router(webrtc_router)
     app.mount(CLIENT_PATH.rstrip("/"), PipecatPrebuiltUI)

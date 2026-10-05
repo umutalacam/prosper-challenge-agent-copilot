@@ -7,9 +7,12 @@
 #   GET /api/agents/{agent_id}/calls/{call_id}    one call: issues, steps, analysis, flags, transcript, …
 #   POST /api/agents/{agent_id}/calls/{call_id}/flags   {reason} → 201: a customer flags the call;
 #                                                        its AI analysis reruns in the background
+#   GET /api/agents/{agent_id}/issues           the agent's issues across its calls, by version, and
+#                                               how many are new since last seen
+#   PATCH /api/agents/{agent_id}/issues         {seen: true}: mark them seen now → the updated issues
 #
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from pydantic import BaseModel, StringConstraints
@@ -77,3 +80,35 @@ def flag_call(
     flag = calls.flag(agent_id, call_id, request.reason)
     background.add_task(calls.reanalyze, call_id)
     return CallRecordService.flag_response(flag)
+
+
+issues_router = APIRouter(prefix="/api/agents/{agent_id}/issues", tags=["calls"])
+
+
+@issues_router.get("")
+def agent_issues(agent_id: str, calls: Calls) -> dict[str, Any]:
+    """The agent's issues across its calls, divided by version, with what's new.
+
+    :param agent_id: The agent.
+    :param calls: The call record service.
+    :return: ``{seen_at, new_count, versions}``.
+    """
+    return calls.issues(agent_id)
+
+
+class IssuesPatch(BaseModel):
+    seen: Literal[True]
+    """Mark the issues seen now (the server stamps the time): only what happens after is new."""
+
+
+@issues_router.patch("")
+def update_issues(agent_id: str, patch: IssuesPatch, calls: Calls) -> dict[str, Any]:
+    """Update the agent's issues: mark them seen (the Issues pane was opened).
+
+    :param agent_id: The agent.
+    :param patch: ``{seen: true}``.
+    :param calls: The call record service.
+    :return: The issues, as ``GET`` returns them, with nothing new.
+    """
+    calls.mark_issues_seen(agent_id)
+    return calls.issues(agent_id)

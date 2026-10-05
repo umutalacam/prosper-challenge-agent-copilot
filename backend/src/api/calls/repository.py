@@ -140,6 +140,38 @@ class CallSummary:
     flag_count: int = 0
 
 
+@dataclass(frozen=True)
+class VersionStats:
+    """How one version of an agent did: its calls, and how many ran into problems."""
+
+    version: int
+    call_count: int
+    calls_with_issues: int  # calls with an issue or a customer flag
+
+
+@dataclass(frozen=True)
+class IssueGroup:
+    """One kind of issue at one node, across a version's calls."""
+
+    version: int
+    kind: IssueKind
+    node: str | None
+    call_count: int  # calls it happened in
+    new_count: int  # of those, calls that ended after the issues were last seen
+    last_at: datetime  # when the latest of those calls ended
+    calls: list[dict[str, Any]]  # the most recent ones, {id, ended_at}, newest first
+
+
+@dataclass(frozen=True)
+class FlagEntry:
+    """A customer's flag, with the call and version it's about."""
+
+    version: int
+    call_id: str
+    reason: str
+    created_at: datetime
+
+
 class CallNotFound(Exception):
     def __init__(self, call_id: str) -> None:
         """:param call_id: The id that matched no stored call."""
@@ -302,6 +334,99 @@ class CallRepository:
                 for f in flags
             ],
         )
+
+    # ---- an agent's issues across its calls (the editor's Issues pane) ---------
+    # An issue happened when its call ended (calls are stored then); a flag, when
+    # it was made. Timestamps are ISO strings in UTC, so they compare as text.
+
+    GROUP_CALLS = 20  # calls listed per issue group, newest first
+
+    def version_stats(self, agent_id: str) -> list[VersionStats]:
+        """:param agent_id: The agent.
+        :return: Per version with calls, newest first: its calls and how many had problems.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT agent_version, count(*) AS call_count,"
+                " sum(EXISTS (SELECT 1 FROM call_issues WHERE call_id = calls.id)"
+                "     OR EXISTS (SELECT 1 FROM call_flags WHERE call_id = calls.id)) AS calls_with_issues"
+                " FROM calls WHERE agent_id = ? GROUP BY agent_version ORDER BY agent_version DESC",
+                (agent_id,),
+            ).fetchall()
+        return [VersionStats(r["agent_version"], r["call_count"], r["calls_with_issues"]) for r in rows]
+
+    def issue_groups(self, agent_id: str, seen_at: datetime | None) -> list[IssueGroup]:
+        """An agent's issues, grouped by version, kind and node.
+
+        :param agent_id: The agent.
+        :param seen_at: When its issues were last seen; None counts every call as new.
+        :return: The groups, newest version first.
+        """
+        seen = seen_at.isoformat(timespec="milliseconds") if seen_at else ""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT i.agent_version, i.kind, i.node,"
+                " count(DISTINCT i.call_id) AS call_count,"
+                " count(DISTINCT CASE WHEN c.ended_at > :seen THEN i.call_id END) AS new_count,"
+                " max(c.ended_at) AS last_at,"
+                " (SELECT json_group_array(json_object('id', id, 'ended_at', ended_at)) FROM ("
+                "    SELECT DISTINCT c2.id, c2.ended_at FROM call_issues AS i2 JOIN calls AS c2 ON c2.id = i2.call_id"
+                "     WHERE i2.agent_id = i.agent_id AND i2.agent_version = i.agent_version"
+                "       AND i2.kind = i.kind AND i2.node IS i.node"
+                "     ORDER BY c2.ended_at DESC LIMIT :limit)) AS calls"
+                " FROM call_issues AS i JOIN calls AS c ON c.id = i.call_id"
+                " WHERE i.agent_id = :agent_id"
+                " GROUP BY i.agent_version, i.kind, i.node"
+                " ORDER BY i.agent_version DESC, last_at DESC",
+                {"agent_id": agent_id, "seen": seen, "limit": CallRepository.GROUP_CALLS},
+            ).fetchall()
+        return [
+            IssueGroup(
+                version=r["agent_version"],
+                kind=r["kind"],
+                node=r["node"],
+                call_count=r["call_count"],
+                new_count=r["new_count"],
+                last_at=datetime.fromisoformat(r["last_at"]),
+                calls=json.loads(r["calls"]),
+            )
+            for r in rows
+        ]
+
+    def flags_for_agent(self, agent_id: str) -> list[FlagEntry]:
+        """:param agent_id: The agent.
+        :return: Customers' flags on its calls, newest first.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT c.agent_version, f.call_id, f.reason, f.created_at"
+                " FROM call_flags AS f JOIN calls AS c ON c.id = f.call_id"
+                " WHERE c.agent_id = ? ORDER BY f.id DESC",
+                (agent_id,),
+            ).fetchall()
+        return [
+            FlagEntry(r["agent_version"], r["call_id"], r["reason"], datetime.fromisoformat(r["created_at"]))
+            for r in rows
+        ]
+
+    def issues_seen_at(self, agent_id: str) -> datetime | None:
+        """:param agent_id: The agent.
+        :return: When its issues were last seen; None if never.
+        """
+        with self._connect() as conn:
+            row = conn.execute("SELECT seen_at FROM issues_seen WHERE agent_id = ?", (agent_id,)).fetchone()
+        return datetime.fromisoformat(row["seen_at"]) if row else None
+
+    def mark_issues_seen(self, agent_id: str, seen_at: datetime) -> None:
+        """:param agent_id: The agent.
+        :param seen_at: When its issues were seen; what happens after is new.
+        """
+        with self._transaction() as conn:
+            conn.execute(
+                "INSERT INTO issues_seen (agent_id, seen_at) VALUES (?, ?)"
+                " ON CONFLICT (agent_id) DO UPDATE SET seen_at = excluded.seen_at",
+                (agent_id, seen_at.isoformat(timespec="milliseconds")),
+            )
 
     @staticmethod
     def _upsert_analysis(conn: sqlite3.Connection, call_id: str, analysis: CallAnalysis) -> None:
