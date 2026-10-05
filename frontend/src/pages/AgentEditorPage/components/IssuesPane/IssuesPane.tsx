@@ -4,9 +4,20 @@ import { errorMessage, useAgentIssues, useBotStatus, useMarkIssuesSeen } from "@
 import { useNow } from "@/shared/hooks/useNow";
 import { formatRelative } from "@/shared/lib/time";
 import type { AgentIssues, IssueFlag, IssueGroup, VersionIssues } from "@/shared/types/call";
-import type { CopilotFix } from "@/shared/types/copilot";
-import { Badge, CloseIcon, EmptyState, FlagIcon, IconButton, IssuesIcon } from "@/shared/ui";
+import type { CopilotFix, CopilotGroupFix } from "@/shared/types/copilot";
+import {
+  Badge,
+  Button,
+  CheckIcon,
+  CloseIcon,
+  EmptyState,
+  FlagIcon,
+  IconButton,
+  IssuesIcon,
+  SparklesIcon,
+} from "@/shared/ui";
 import { callerName } from "../../lib/callerName";
+import { groupLabel } from "../../lib/issueGroups";
 import { CallAvatar } from "../CallAvatar/CallAvatar";
 import { CallDetail } from "../CallDetail/CallDetail";
 import styles from "./IssuesPane.module.scss";
@@ -18,8 +29,17 @@ export interface IssuesPaneProps {
   onClose: () => void;
   /** Hand an analysis finding to the copilot ("Fix with copilot"). */
   onFix?: (fix: CopilotFix) => void;
+  /** Hand an issue group to the copilot: one fix across its calls. */
+  onFixGroup?: (group: CopilotGroupFix) => void;
   /** The copilot is busy with another turn. */
   fixDisabled?: boolean;
+}
+
+/** How the pane's group fix buttons stand: who to call, and which were already sent. */
+interface GroupFixing {
+  onFix: (version: number, group: IssueGroup) => void;
+  disabled: boolean;
+  sent: ReadonlySet<string>;
 }
 
 /** What was new while the pane is open: group key → its new calls, flag key → 1. */
@@ -47,7 +67,13 @@ function newMarksOf(issues: AgentIssues | undefined): Map<string, number> {
  * customers flagged. Opening it marks the issues seen (the toolbar badge clears);
  * what was new stays highlighted while it's open. A call opens right here.
  */
-export function IssuesPane({ agentId, onClose, onFix, fixDisabled }: IssuesPaneProps) {
+export function IssuesPane({
+  agentId,
+  onClose,
+  onFix,
+  onFixGroup,
+  fixDisabled = false,
+}: IssuesPaneProps) {
   const issues = useAgentIssues(agentId);
   const { mutate: markSeen } = useMarkIssuesSeen(agentId);
   const deployed = useBotStatus().data;
@@ -70,6 +96,25 @@ export function IssuesPane({ agentId, onClose, onFix, fixDisabled }: IssuesPaneP
   }, [newCount, markSeen]);
 
   const liveVersion = deployed?.agent_id === agentId ? deployed.version : null;
+
+  // Groups sent to the copilot while the pane is open; reopening it starts over.
+  const [sentGroups, setSentGroups] = useState<ReadonlySet<string>>(() => new Set());
+  const fixing: GroupFixing | null = onFixGroup
+    ? {
+        onFix: (version, group) => {
+          setSentGroups((keys) => new Set(keys).add(groupKey(version, group)));
+          onFixGroup({
+            kind: group.kind,
+            node: group.node,
+            version,
+            call_count: group.call_count,
+            causes: group.causes,
+          });
+        },
+        disabled: fixDisabled,
+        sent: sentGroups,
+      }
+    : null;
 
   return (
     <aside className={styles.pane} aria-labelledby={titleId}>
@@ -116,6 +161,7 @@ export function IssuesPane({ agentId, onClose, onFix, fixDisabled }: IssuesPaneP
                   marks={marks}
                   now={now}
                   onOpen={setOpenCallId}
+                  fixing={fixing}
                 />
               ))
             )}
@@ -132,12 +178,14 @@ function Version({
   marks,
   now,
   onOpen,
+  fixing,
 }: {
   version: VersionIssues;
   live: boolean;
   marks: NewMarks;
   now: Date;
   onOpen: (callId: string) => void;
+  fixing: GroupFixing | null;
 }) {
   const failures = version.groups.filter((g) => g.kind !== "long_stay");
   const notes = version.groups.filter((g) => g.kind === "long_stay");
@@ -168,6 +216,8 @@ function Version({
               newCount={marks.get(groupKey(version.version, group)) ?? 0}
               now={now}
               onOpen={onOpen}
+              version={version.version}
+              fixing={fixing}
             />
           ))}
           {version.flags.map((flag) => (
@@ -198,6 +248,8 @@ function Version({
               newCount={0} // long stays are notes: they never count as new
               now={now}
               onOpen={onOpen}
+              version={version.version}
+              fixing={fixing}
             />
           ))}
         </ul>
@@ -206,34 +258,38 @@ function Version({
   );
 }
 
-/** How a group reads: what happened and where. */
-function groupLabel({ kind, node }: IssueGroup): string {
-  const where = node ? ` in ${node}` : "";
-  switch (kind) {
-    case "stuck":
-      return `Stuck${where}`;
-    case "error":
-      return `Errors${where}`;
-    case "long_stay":
-      return `Long stays${where}`;
-  }
-}
-
 function Group({
   group,
   newCount,
   now,
   onOpen,
+  version,
+  fixing,
 }: {
   group: IssueGroup;
   newCount: number;
   now: Date;
   onOpen: (callId: string) => void;
+  version: number;
+  fixing: GroupFixing | null;
 }) {
+  const sent = fixing?.sent.has(groupKey(version, group)) ?? false;
+  const unanalyzed = group.causes.length === 0;
+  const [open, setOpen] = useState(false);
+  const callsId = useId();
   return (
-    <li>
-      <details className={styles.group}>
-        <summary className={styles.summary}>
+    <li className={styles.group}>
+      {/* The row toggles its calls; the fix button sits beside it, not inside it. */}
+      <div className={clsx(styles.groupHeader, open && styles.open)}>
+        <button
+          type="button"
+          className={styles.summary}
+          aria-expanded={open}
+          aria-controls={callsId}
+          onClick={() => {
+            setOpen(!open);
+          }}
+        >
           <span className={clsx(styles.dot, styles[group.kind])} aria-hidden="true" />
           <span className={styles.groupBody}>
             <span className={styles.label}>{groupLabel(group)}</span>
@@ -243,8 +299,37 @@ function Group({
             </span>
           </span>
           {newCount > 0 && <Badge tone="danger">{newCount} new</Badge>}
-        </summary>
-        <ul className={styles.calls}>
+        </button>
+        {fixing &&
+          (sent ? (
+            <Button size="sm" className={styles.groupFix} aria-label="Sent to copilot" disabled>
+              <CheckIcon width={12} height={12} />
+              Sent
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className={styles.groupFix}
+              aria-label="Fix with copilot"
+              disabled={fixing.disabled || unanalyzed}
+              title={
+                unanalyzed
+                  ? "Waiting for these calls' analyses"
+                  : fixing.disabled
+                    ? "The copilot is busy"
+                    : `One fix across these ${String(group.call_count)} calls`
+              }
+              onClick={() => {
+                fixing.onFix(version, group);
+              }}
+            >
+              <SparklesIcon width={12} height={12} />
+              Fix
+            </Button>
+          ))}
+      </div>
+      {open && (
+        <ul id={callsId} className={styles.calls}>
           {group.calls.map((call) => (
             <li key={call.id}>
               <button
@@ -268,7 +353,7 @@ function Group({
             </li>
           )}
         </ul>
-      </details>
+      )}
     </li>
   );
 }

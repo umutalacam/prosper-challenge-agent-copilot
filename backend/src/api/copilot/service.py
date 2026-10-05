@@ -3,7 +3,9 @@
 # in, a stream of events out. The turn runs through the node graph (graph.py):
 # understand the request, then plan → build → review → wrap up, explain, or ask
 # the user. A fix turn (a finding from a call's AI analysis) starts at the fix
-# node instead and goes straight to plan → build → review → wrap up. Stateless:
+# node instead and goes straight to plan → build → review → wrap up. A group fix (an
+# issue across calls) starts at group_fix: it proposes one fix for all of them and
+# asks the user, whose answer is the next turn's build. Stateless:
 # the browser keeps the conversation and sends it each turn.
 #
 # Events, in the order they can happen:
@@ -35,13 +37,19 @@ class CopilotService:
         self._graph = build_graph(CopilotModel(client, model), PromptLibrary(config_dir))
 
     async def run_turn(
-        self, agent: dict[str, Any], messages: list[dict[str, str]], fix: dict[str, Any] | None = None
+        self,
+        agent: dict[str, Any],
+        messages: list[dict[str, str]],
+        fix: dict[str, Any] | None = None,
+        group_fix: dict[str, Any] | None = None,
     ) -> AsyncIterator[Event]:
         """`messages`: the conversation so far, ending with the user's new prompt (for a fix,
-        the finding as text). `fix`: the finding to fix, which starts the turn at the fix node."""
-        turn = Turn(AgentEdits(agent), messages, fix=fix)
+        the finding as text). `fix`: the finding to fix, which starts the turn at the fix node.
+        `group_fix`: an issue across calls, which starts it at the group_fix node."""
+        turn = Turn(AgentEdits(agent), messages, fix=fix, group_fix=group_fix)
+        start = "fix" if fix else "group_fix" if group_fix else None
         try:
-            async for event in self._graph.run(turn, start="fix" if fix else None):
+            async for event in self._graph.run(turn, start=start):
                 yield event
         except Exception as error:  # the model call (network, auth, rate limit), the config or a bug
             logger.exception("Copilot turn failed")

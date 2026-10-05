@@ -59,5 +59,21 @@
     },
     "required": ["reason", "ok", "issues"],
     "additionalProperties": false
+  },
+  "group_fix": {
+    "type": "object",
+    "properties": {
+      "reason": { "type": "string", "description": "One sentence: why this is the common cause" },
+      "common_cause": {
+        "type": "string",
+        "description": "What the agent does or lacks that causes this across the calls, one or two sentences"
+      },
+      "suggestion": {
+        "type": "string",
+        "description": "One concrete change to the agent that fixes it for all of these calls, naming the node"
+      }
+    },
+    "required": ["reason", "common_cause", "suggestion"],
+    "additionalProperties": false
   }
 }

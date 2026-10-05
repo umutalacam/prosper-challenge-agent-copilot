@@ -9,10 +9,12 @@ import type { Agent } from "@/shared/types/agent";
 import type {
   CopilotEvent,
   CopilotFix,
+  CopilotGroupFix,
   CopilotMessage,
   CopilotQuestion,
 } from "@/shared/types/copilot";
 import { agentDocument } from "../lib/agentJson";
+import { groupLabel } from "../lib/issueGroups";
 
 export type CopilotStep =
   { kind: "edit"; text: string; ok: boolean } | { kind: "note"; text: string };
@@ -24,6 +26,8 @@ export interface CopilotTurn {
   prompt: string;
   /** A fix turn: the finding it fixes, shown as a card instead of the prompt. */
   fix?: CopilotFix;
+  /** A group fix turn: the issue across calls, shown as a card instead of the prompt. */
+  group_fix?: CopilotGroupFix;
   status: "running" | "done" | "stopped" | "error";
   /** What it's doing right now, while running. */
   activity: string | null;
@@ -51,6 +55,15 @@ export function fixPrompt({ node }: CopilotFix): string {
     ? `Fix the problem a call ran into in "${node}".`
     : "Fix the problem a call ran into.";
 }
+
+/** A group fix turn's prompt: a label for the history; the group goes as `group_fix`. */
+export function groupFixPrompt(group: CopilotGroupFix): string {
+  const calls = `${String(group.call_count)} ${group.call_count === 1 ? "call" : "calls"}`;
+  return `Fix "${groupLabel(group)}" across ${calls} (v${String(group.version)}).`;
+}
+
+/** What a turn starts from besides its prompt: a finding or an issue group to fix. */
+export type TurnContext = Pick<CopilotTurn, "fix" | "group_fix">;
 
 /** What the copilot said in a turn, as history for the next one. */
 function assistantText(turn: CopilotTurn): string {
@@ -116,7 +129,7 @@ export function useCopilot({ getAgent, onAgent, onTurnEnd }: UseCopilotOptions) 
   }, []);
 
   const send = useCallback(
-    async (prompt: string, fix?: CopilotFix) => {
+    async (prompt: string, context: TurnContext = {}) => {
       const text = prompt.trim();
       if (!text || abortRef.current) return;
       const controller = new AbortController();
@@ -127,7 +140,7 @@ export function useCopilot({ getAgent, onAgent, onTurnEnd }: UseCopilotOptions) 
         {
           id: all.length + 1,
           prompt: text,
-          ...(fix && { fix }),
+          ...context,
           status: "running",
           activity: "Sending…",
           steps: [],
@@ -137,7 +150,7 @@ export function useCopilot({ getAgent, onAgent, onTurnEnd }: UseCopilotOptions) 
       let changed = false;
       try {
         await streamCopilotTurn(
-          { agent: agentDocument(getAgent()), messages, ...(fix && { fix }) },
+          { agent: agentDocument(getAgent()), messages, ...context },
           (event) => {
             if (event.type === "agent") {
               changed = true;
@@ -167,11 +180,20 @@ export function useCopilot({ getAgent, onAgent, onTurnEnd }: UseCopilotOptions) 
   );
 
   /** Start a fix turn for a call-analysis finding (ignored while a turn runs, like `send`). */
-  const fix = useCallback((finding: CopilotFix) => send(fixPrompt(finding), finding), [send]);
+  const fix = useCallback(
+    (finding: CopilotFix) => send(fixPrompt(finding), { fix: finding }),
+    [send],
+  );
+
+  /** Start a group fix turn for an issue across calls: it proposes one fix and asks first. */
+  const fixGroup = useCallback(
+    (group: CopilotGroupFix) => send(groupFixPrompt(group), { group_fix: group }),
+    [send],
+  );
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
   }, []);
 
-  return { turns, running, send, fix, stop };
+  return { turns, running, send, fix, fixGroup, stop };
 }

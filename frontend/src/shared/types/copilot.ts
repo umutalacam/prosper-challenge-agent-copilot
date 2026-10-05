@@ -1,3 +1,5 @@
+import type { CallIssueKind } from "./call";
+
 // TS mirror of the copilot's stream (backend/src/api/copilot/service.py).
 
 export interface CopilotMessage {
@@ -16,6 +18,19 @@ export interface CopilotFix {
   step: number | null;
   cause: string;
   suggestion: string;
+}
+
+/**
+ * An issue group to fix across its calls ("Fix with copilot" in the Issues pane):
+ * starts the turn at the copilot's group_fix node, which proposes one fix and asks.
+ */
+export interface CopilotGroupFix {
+  kind: CallIssueKind;
+  node: string | null;
+  version: number;
+  call_count: number;
+  /** What the calls' analyses say caused it. */
+  causes: string[];
 }
 
 export interface CopilotQuestion {

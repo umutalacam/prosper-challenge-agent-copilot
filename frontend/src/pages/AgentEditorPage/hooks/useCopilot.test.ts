@@ -102,6 +102,39 @@ describe("useCopilot", () => {
     expect(sent.messages).toEqual([{ role: "user", content: prompt }]);
   });
 
+  it("starts a group fix turn: sends the group with a label prompt", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        streamResponse([
+          { type: "note", text: "Common cause: greeting only handles bookings." },
+          { type: "questions", questions: [{ question: "Suggested fix: Add one. Apply it?" }] },
+          { type: "done" },
+        ]),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() => useCopilot({ getAgent: () => agent, onAgent: vi.fn() }));
+    const group = {
+      kind: "stuck" as const,
+      node: "greeting",
+      version: 4,
+      call_count: 3,
+      causes: ["No action for insurance questions."],
+    };
+
+    await act(() => result.current.fixGroup(group));
+
+    const prompt = 'Fix "Stuck in greeting" across 3 calls (v4).';
+    expect(result.current.turns[0]).toMatchObject({ prompt, group_fix: group });
+    expect(result.current.turns[0]?.questions).toHaveLength(1);
+    const sent = JSON.parse(requestBody(fetchMock, 0)) as {
+      messages: unknown[];
+      group_fix: unknown;
+    };
+    expect(sent.group_fix).toEqual(group);
+    expect(sent.messages).toEqual([{ role: "user", content: prompt }]);
+  });
+
   it("sends earlier turns, questions included, as history", async () => {
     const fetchMock = vi.fn(() =>
       Promise.resolve(

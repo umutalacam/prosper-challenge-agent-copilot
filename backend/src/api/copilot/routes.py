@@ -36,6 +36,17 @@ class CopilotFix(BaseModel):
     suggestion: str
 
 
+class CopilotGroupFix(BaseModel):
+    """An issue group to fix across its calls ("Fix with copilot" in the Issues pane)."""
+
+    kind: Literal["stuck", "long_stay", "error"]
+    node: str | None
+    version: int
+    call_count: int = Field(ge=1)
+    causes: list[str] = Field(min_length=1, max_length=50)
+    """What the calls' AI analyses say caused it, one per call."""
+
+
 class CopilotTurnRequest(BaseModel):
     agent: dict[str, Any]
     """The editor's working copy (unsaved edits included)."""
@@ -43,17 +54,22 @@ class CopilotTurnRequest(BaseModel):
     """The conversation so far, ending with the user's new prompt (for a fix, the finding as text)."""
     fix: CopilotFix | None = None
     """A fix turn: the finding to fix; the turn starts at the fix node."""
+    group_fix: CopilotGroupFix | None = None
+    """A group fix turn: an issue across calls; the turn starts at the group_fix node."""
 
 
 @router.post("/turns")
 async def run_turn(request: CopilotTurnRequest, copilot: Copilot) -> StreamingResponse:
     if request.messages[-1].role != "user":
         raise HTTPException(422, "The last message must be the user's prompt.")
+    if request.fix and request.group_fix:
+        raise HTTPException(422, "Send either a fix or a group fix, not both.")
 
     async def lines() -> AsyncIterator[str]:
         messages = [message.model_dump() for message in request.messages]
         fix = request.fix.model_dump() if request.fix else None
-        async for event in copilot.run_turn(request.agent, messages, fix):
+        group_fix = request.group_fix.model_dump() if request.group_fix else None
+        async for event in copilot.run_turn(request.agent, messages, fix, group_fix):
             yield json.dumps(event) + "\n"
 
     return StreamingResponse(lines(), media_type="application/x-ndjson")

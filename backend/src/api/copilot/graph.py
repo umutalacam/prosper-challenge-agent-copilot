@@ -3,14 +3,17 @@
 # node, ask it for the next one, until a node returns None. The graph knows nodes
 # only as CopilotNode; which node follows which is each node's own `next`.
 #
-# A turn starts at resolve_intent (a typed prompt) or at fix (a finding from a
-# call's AI analysis, sent with "Fix with copilot").
+# A turn starts at resolve_intent (a typed prompt), at fix (a finding from a
+# call's AI analysis, sent with "Fix with copilot"), or at group_fix (an issue
+# across calls, from the Issues pane: it proposes one fix and asks the user, whose
+# answer comes back as the next turn and builds through resolve_intent).
 #
 #                  ┌── clarify ──▶ (questions, turn ends)
 # resolve_intent ──┼── build ──▶ planner ──▶ executor ──▶ reviewer ──▶ wrap_up
 #                  │                ▲  ▲                     │
 #                  │      fix ──────┘  └──── issues ─────────┘
 #                  └── explain ──▶ explainer ──▶ wrap_up
+# group_fix ──▶ (a proposed fix as a question, turn ends)
 #
 # To add a node: subclass DecisionNode / ToolNode / TextNode in nodes/, add its
 # prompt as config/copilot/<name>.md, register it in build_graph, and return its
@@ -25,6 +28,7 @@ from api.copilot.nodes import (
     ExecutorNode,
     ExplainerNode,
     FixNode,
+    GroupFixNode,
     PlannerNode,
     ResolveIntentNode,
     ReviewerNode,
@@ -60,6 +64,7 @@ def build_graph(model: CopilotModel, prompts: PromptLibrary) -> CopilotGraph:
     nodes: list[CopilotNode] = [
         ResolveIntentNode(model, prompts),
         FixNode(model, prompts),
+        GroupFixNode(model, prompts),
         PlannerNode(model, prompts),
         ExecutorNode(model, prompts),
         ReviewerNode(model, prompts),

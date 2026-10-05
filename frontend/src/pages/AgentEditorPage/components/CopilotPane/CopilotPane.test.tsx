@@ -42,4 +42,20 @@ describe("CopilotPane", () => {
     expect(screen.getByText("Add a goodbye")).toBeTruthy();
     expect(screen.queryByText("Fix from a call")).toBeNull();
   });
+
+  it("shows a group fix turn as the issue across calls", () => {
+    renderTurns([
+      {
+        id: 1,
+        prompt: 'Fix "Stuck in greeting" across 3 calls (v4).',
+        group_fix: { kind: "stuck", node: "greeting", version: 4, call_count: 3, causes: ["x"] },
+        status: "done",
+        activity: null,
+        steps: [],
+      },
+    ]);
+    expect(screen.getByText("Fix across calls")).toBeTruthy();
+    expect(screen.getByText("3 calls · v4")).toBeTruthy();
+    expect(screen.getByText("Stuck in greeting")).toBeTruthy();
+  });
 });

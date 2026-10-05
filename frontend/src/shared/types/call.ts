@@ -158,6 +158,8 @@ export interface IssueGroup {
   last_at: string;
   /** The most recent of those calls (at most 20), newest first. */
   calls: { id: string; ended_at: string }[];
+  /** What those calls' AI analyses say caused it (causes, not suggestions), newest first. */
+  causes: string[];
 }
 
 /** A customer's flag in the Issues pane. */

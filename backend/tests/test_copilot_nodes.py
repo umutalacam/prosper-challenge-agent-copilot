@@ -1,6 +1,7 @@
 """Each copilot node on its own: run on a hand-built Turn, and next as a pure function."""
 
 import asyncio
+import json
 import copy
 
 import pytest
@@ -11,6 +12,7 @@ from api.copilot.nodes import (
     ExecutorNode,
     ExplainerNode,
     FixNode,
+    GroupFixNode,
     PlannerNode,
     ResolveIntentNode,
     ReviewerNode,
@@ -250,3 +252,33 @@ def test_fix_goal_without_a_node_or_suggestion():
     assert FixNode.goal_of({"node": None, "cause": "The call failed.", "suggestion": ""}) == (
         "Fix a problem a real call ran into: The call failed."
     )
+
+
+# ---- group_fix: an issue across calls proposes one fix and asks ----------------
+
+GROUP = {
+    "kind": "stuck",
+    "node": "greeting",
+    "version": 4,
+    "call_count": 3,
+    "causes": ["Asked for the date of birth twice.", "No action for insurance questions."],
+}
+
+
+def test_group_fix_proposes_one_fix_and_asks_the_user():
+    answer = {"reason": "r", "common_cause": "greeting only handles bookings.", "suggestion": "Add an action."}
+    node, model = make(GroupFixNode, reply(json.dumps(answer)))
+    t = turn(group_fix=GROUP)
+    events = run_node(node, t)
+
+    context = model.requests[0]["messages"][-1]["content"]
+    assert "version 4 of the agent, 3 calls got stuck" in context and "in node 'greeting'" in context
+    assert "- No action for insurance questions." in context
+    assert events[1:] == [
+        {"type": "note", "text": "Common cause: greeting only handles bookings."},
+        {
+            "type": "questions",
+            "questions": [{"question": "Suggested fix: Add an action. Apply it?", "options": ["Apply this fix"]}],
+        },
+    ]
+    assert node.next(t) is None  # the user's answer is the next turn

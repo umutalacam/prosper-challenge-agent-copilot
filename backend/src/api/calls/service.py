@@ -240,6 +240,7 @@ class CallRecordService:
             "new_count": group.new_count,
             "last_at": group.last_at.isoformat(),
             "calls": group.calls,
+            "causes": group.causes,
         }
 
     @staticmethod

@@ -160,6 +160,7 @@ class IssueGroup:
     new_count: int  # of those, calls that ended after the issues were last seen
     last_at: datetime  # when the latest of those calls ended
     calls: list[dict[str, Any]]  # the most recent ones, {id, ended_at}, newest first
+    causes: list[str] = field(default_factory=list)  # what the AI analyses say caused it, newest call first
 
 
 @dataclass(frozen=True)
@@ -373,7 +374,18 @@ class CallRepository:
                 "    SELECT DISTINCT c2.id, c2.ended_at FROM call_issues AS i2 JOIN calls AS c2 ON c2.id = i2.call_id"
                 "     WHERE i2.agent_id = i.agent_id AND i2.agent_version = i.agent_version"
                 "       AND i2.kind = i.kind AND i2.node IS i.node"
-                "     ORDER BY c2.ended_at DESC LIMIT :limit)) AS calls"
+                "     ORDER BY c2.ended_at DESC LIMIT :limit)) AS calls,"
+                # The analyses' causes for exactly these issues: findings match an issue by call and step.
+                " (SELECT json_group_array(cause) FROM ("
+                "    SELECT json_extract(f.value, '$.cause') AS cause"
+                "      FROM call_issues AS i3 JOIN calls AS c3 ON c3.id = i3.call_id"
+                "      JOIN call_analyses AS a ON a.call_id = i3.call_id AND a.status = 'done',"
+                "           json_each(a.findings) AS f"
+                "     WHERE i3.agent_id = i.agent_id AND i3.agent_version = i.agent_version"
+                "       AND i3.kind = i.kind AND i3.node IS i.node"
+                "       AND json_extract(f.value, '$.step') = i3.step"
+                "     GROUP BY i3.call_id, cause"
+                "     ORDER BY max(c3.ended_at) DESC LIMIT :limit)) AS causes"
                 " FROM call_issues AS i JOIN calls AS c ON c.id = i.call_id"
                 " WHERE i.agent_id = :agent_id"
                 " GROUP BY i.agent_version, i.kind, i.node"
@@ -389,6 +401,7 @@ class CallRepository:
                 new_count=r["new_count"],
                 last_at=datetime.fromisoformat(r["last_at"]),
                 calls=json.loads(r["calls"]),
+                causes=[cause for cause in json.loads(r["causes"]) if cause],
             )
             for r in rows
         ]

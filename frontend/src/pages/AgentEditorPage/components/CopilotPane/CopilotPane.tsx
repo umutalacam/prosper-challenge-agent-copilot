@@ -1,9 +1,10 @@
 import { clsx } from "clsx";
 import { useState, type ReactNode } from "react";
-import type { CopilotFix } from "@/shared/types/copilot";
-import { CloseIcon, FixIcon, IconButton, SparklesIcon } from "@/shared/ui";
+import type { CopilotFix, CopilotGroupFix } from "@/shared/types/copilot";
+import { CloseIcon, FixIcon, IconButton, IssuesIcon, SparklesIcon } from "@/shared/ui";
 import type { CopilotTurn } from "../../hooks/useCopilot";
 import { callerName } from "../../lib/callerName";
+import { groupLabel } from "../../lib/issueGroups";
 import { useStickToBottom } from "../../hooks/useStickToBottom";
 import { CopilotQuestions } from "../CopilotQuestions/CopilotQuestions";
 import { TypedText } from "../TypedText/TypedText";
@@ -64,7 +65,11 @@ export function CopilotPane({ turns, onAnswer, onClose, footer }: CopilotPanePro
                     {earlier.map((turn) => (
                       <li key={turn.id}>
                         <p className={styles.earlierPrompt}>
-                          {turn.fix ? `Fix: ${turn.fix.node ?? "the call"}` : turn.prompt}
+                          {turn.fix
+                            ? `Fix: ${turn.fix.node ?? "the call"}`
+                            : turn.group_fix
+                              ? `Fix: ${groupLabel(turn.group_fix)}`
+                              : turn.prompt}
                         </p>
                         {(turn.reply ?? turn.error) && (
                           <p className={styles.earlierReply}>{turn.reply ?? turn.error}</p>
@@ -98,7 +103,13 @@ export function CopilotPane({ turns, onAnswer, onClose, footer }: CopilotPanePro
 function Turn({ turn, onAnswer }: { turn: CopilotTurn; onAnswer: (message: string) => void }) {
   return (
     <article className={styles.turn}>
-      {turn.fix ? <FixCard fix={turn.fix} /> : <p className={styles.prompt}>{turn.prompt}</p>}
+      {turn.fix ? (
+        <FixCard fix={turn.fix} />
+      ) : turn.group_fix ? (
+        <GroupFixCard group={turn.group_fix} />
+      ) : (
+        <p className={styles.prompt}>{turn.prompt}</p>
+      )}
 
       {/* Announced as it changes: what the copilot is doing, then what it did. */}
       <div aria-live="polite">
@@ -170,6 +181,22 @@ function FixCard({ fix }: { fix: CopilotFix }) {
         </span>
       </p>
       <p>{fix.suggestion || fix.cause}</p>
+    </div>
+  );
+}
+
+/** A group fix turn's "prompt": the issue across calls (the copilot also gets their causes). */
+function GroupFixCard({ group }: { group: CopilotGroupFix }) {
+  return (
+    <div className={styles.fixCard}>
+      <p className={styles.fixHeader}>
+        <IssuesIcon width={12} height={12} />
+        Fix across calls
+        <span className={styles.fixSource}>
+          {group.call_count} {group.call_count === 1 ? "call" : "calls"} · v{group.version}
+        </span>
+      </p>
+      <p>{groupLabel(group)}</p>
     </div>
   );
 }

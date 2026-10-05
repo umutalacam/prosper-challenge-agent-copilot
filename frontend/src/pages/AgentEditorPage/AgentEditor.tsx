@@ -304,6 +304,10 @@ export function AgentEditor({
               setRightPane(null);
             }}
             onFix={fixWithCopilot}
+            onFixGroup={(group) => {
+              setCopilotOpen(true);
+              void copilot.fixGroup(group);
+            }}
             fixDisabled={copilot.running}
           />
         )}

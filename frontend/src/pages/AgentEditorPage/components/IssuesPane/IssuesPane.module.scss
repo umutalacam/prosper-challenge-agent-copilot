@@ -79,32 +79,45 @@
   list-style: none;
 }
 
-// ---- an issue group: a row that expands to its calls ----
+// ---- an issue group: a row that expands to its calls, with its fix on the right ----
 .group {
   border-radius: $radius-md;
   background: $color-surface-sunken;
+}
 
-  &[open] .summary {
+.groupHeader {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding-right: $space-2;
+
+  &.open {
     border-bottom: 1px solid $color-border;
   }
 }
 
 .summary {
   display: flex;
+  flex: 1;
   align-items: center;
   gap: $space-2;
-  padding: $space-2 $space-3;
+  min-width: 0;
+  padding: $space-2 0 $space-2 $space-3;
+  border: none;
+  border-radius: $radius-md;
+  background: none;
+  color: $color-text;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
-  list-style: none;
-
-  &::-webkit-details-marker {
-    display: none;
-  }
 
   &:focus-visible {
     @include m.focus-ring;
-    border-radius: $radius-md;
   }
+}
+
+.groupFix {
+  flex: none;
 }
 
 // What kind: failures in the brand / danger color, notes in neutral.
@@ -124,7 +137,7 @@
 }
 
 .long_stay {
-  background: $color-border-strong;
+  background: $color-neutral;
 }
 
 .groupBody,

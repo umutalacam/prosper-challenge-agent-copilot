@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AgentIssues, CallDetail } from "@/shared/types/call";
 import { callerName } from "../../lib/callerName";
-import { IssuesPane } from "./IssuesPane";
+import { IssuesPane, type IssuesPaneProps } from "./IssuesPane";
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -27,6 +27,7 @@ const issues: AgentIssues = {
             { id: "c-a", ended_at: minutesAgo(5) },
             { id: "c-b", ended_at: minutesAgo(40) },
           ],
+          causes: ["Asked for the date of birth twice.", "No action for insurance questions."],
         },
         {
           kind: "long_stay",
@@ -35,6 +36,7 @@ const issues: AgentIssues = {
           new_count: 1,
           last_at: minutesAgo(9),
           calls: [{ id: "c-c", ended_at: minutesAgo(9) }],
+          causes: [],
         },
       ],
       flags: [
@@ -104,11 +106,11 @@ function stubApi() {
   return fetchMock;
 }
 
-function renderPane() {
+function renderPane(props: Partial<IssuesPaneProps> = {}) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={queryClient}>
-      <IssuesPane agentId="desk" onClose={vi.fn()} />
+      <IssuesPane agentId="desk" onClose={vi.fn()} {...props} />
     </QueryClientProvider>,
   );
   return userEvent.setup();
@@ -167,5 +169,31 @@ describe("IssuesPane", () => {
     expect(await screen.findByText("The flow never started.")).toBeTruthy(); // the call's overview
     await user.click(screen.getByRole("button", { name: "All issues" }));
     expect(await screen.findByRole("heading", { name: "v3" })).toBeTruthy();
+  });
+
+  it("hands a group to the copilot with its causes, once per opening", async () => {
+    stubApi();
+    const onFixGroup = vi.fn();
+    const user = renderPane({ onFixGroup });
+    // The fix button is on the group's row, no need to expand it.
+    const group = (label: string) => within(screen.getByText(label).closest("li")!);
+
+    await screen.findByText("Stuck in greeting");
+    await user.click(group("Stuck in greeting").getByRole("button", { name: "Fix with copilot" }));
+    expect(onFixGroup).toHaveBeenCalledWith({
+      kind: "stuck",
+      node: "greeting",
+      version: 3,
+      call_count: 2,
+      causes: ["Asked for the date of birth twice.", "No action for insurance questions."],
+    });
+    const sent = group("Stuck in greeting").getByRole("button", { name: "Sent to copilot" });
+    expect((sent as HTMLButtonElement).disabled).toBe(true);
+
+    // A group whose calls have no finished analysis yet can't be fixed.
+    const waiting = group("Long stays in collect").getByRole("button", {
+      name: "Fix with copilot",
+    });
+    expect((waiting as HTMLButtonElement).disabled).toBe(true);
   });
 });

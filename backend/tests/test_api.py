@@ -148,7 +148,7 @@ def test_copilot_streams_ndjson_events(client: TestClient):
     from dependencies import get_copilot_service
 
     class FakeCopilot:
-        async def run_turn(self, agent, messages, fix=None):
+        async def run_turn(self, agent, messages, fix=None, group_fix=None):
             what = f"fix in {fix['node']}" if fix else messages[-1]["content"]
             yield {"type": "reply", "text": f"Got {what} for {agent['name']}"}
             yield {"type": "done"}
@@ -165,5 +165,9 @@ def test_copilot_streams_ndjson_events(client: TestClient):
     response = client.post("/api/copilot/turns", json=body | {"fix": fix})
     assert json.loads(response.text.splitlines()[0]) == {"type": "reply", "text": "Got fix in greeting for A"}
     assert client.post("/api/copilot/turns", json=body | {"fix": {"node": "greeting"}}).status_code == 422
+    group = {"kind": "stuck", "node": "greeting", "version": 1, "call_count": 2, "causes": ["c"]}
+    assert client.post("/api/copilot/turns", json=body | {"group_fix": group}).status_code == 200
+    assert client.post("/api/copilot/turns", json=body | {"group_fix": group | {"causes": []}}).status_code == 422
+    assert client.post("/api/copilot/turns", json=body | {"fix": fix, "group_fix": group}).status_code == 422
     body["messages"] = [{"role": "assistant", "content": "hello"}]
     assert client.post("/api/copilot/turns", json=body).status_code == 422

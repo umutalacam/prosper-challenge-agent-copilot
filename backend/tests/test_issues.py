@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from api.agents.repository import AgentNotFound, AgentRepository
 from api.agents.service import AgentService
 from api.calls.analyzer import CallAnalyzer
-from api.calls.repository import CallIssue, CallRepository
+from api.calls.repository import CallAnalysis, CallIssue, CallRepository
 from api.calls.service import CallRecordService
 from tests.conftest import make_agent, make_call, make_copilot_analyzer
 
@@ -184,6 +184,7 @@ def test_the_issues_endpoints(client: TestClient, api_db: Path):
         "new_count": 1,
         "last_at": None,
         "calls": [{"id": "c1", "ended_at": "2026-10-05T09:00:01.500+00:00"}],
+        "causes": [],
     }
     patched = client.patch(f"/api/agents/{agent_id}/issues", json={"seen": True})
     assert patched.status_code == 200
@@ -193,3 +194,30 @@ def test_the_issues_endpoints(client: TestClient, api_db: Path):
     assert client.patch(f"/api/agents/{agent_id}/issues", json={}).status_code == 422
     assert client.get("/api/agents/nope/issues").status_code == 404
     assert client.patch("/api/agents/nope/issues", json={"seen": True}).status_code == 404
+
+
+def analysis(*findings: tuple[str | None, int | None, str], status: str = "done") -> CallAnalysis:
+    """:param findings: ``(node, step, cause)`` each, with a suggestion that must never surface.
+    :param status: The analysis status.
+    :return: The analysis.
+    """
+    return replace(
+        CallAnalysis.pending(),
+        status=status,
+        findings=[{"node": n, "step": s, "cause": c, "suggestion": "SUGGESTION"} for n, s, c in findings],
+    )
+
+
+def test_a_group_carries_its_calls_analysis_causes(service: CallRecordService, calls: CallRepository):
+    save(calls, "a", [stuck(), long_stay("greeting")], minutes=0)
+    save(calls, "b", [stuck()], minutes=5)
+    save(calls, "c", [stuck()], minutes=6)
+    calls.set_analysis("a", analysis(("greeting", 0, "Asked for the date of birth twice."), (None, None, "A flag")))
+    calls.set_analysis("b", analysis(("greeting", 0, "No action for insurance questions.")))
+    calls.set_analysis("c", analysis(("greeting", 0, "Not analyzed yet."), status="pending"))
+
+    groups = {g["kind"]: g for g in service.issues("desk")["versions"][0]["groups"]}
+    # Newest call first; matched by call and step (the long stay at the same step shares a's cause);
+    # never the suggestions, never a pending analysis, never a flag's finding.
+    assert groups["stuck"]["causes"] == ["No action for insurance questions.", "Asked for the date of birth twice."]
+    assert groups["long_stay"]["causes"] == ["Asked for the date of birth twice."]

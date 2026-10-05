@@ -17,6 +17,7 @@ class Turn:
     edits: AgentEdits  # the agent being built; edits apply to edits.agent
     messages: list[dict[str, str]]  # the conversation, ending with the user's new prompt
     fix: dict[str, Any] | None = None  # a fix turn: the call-analysis finding {call_id, node, step, cause, suggestion}
+    group_fix: dict[str, Any] | None = None  # a group fix: {kind, node, version, call_count, causes}
     intent: str | None = None  # resolve_intent: "build" | "explain" | "clarify"
     goal: str | None = None  # resolve_intent: what the user wants from this turn, one sentence
     questions: list[dict[str, Any]] = field(default_factory=list)  # resolve_intent, for clarify

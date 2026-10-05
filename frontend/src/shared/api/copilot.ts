@@ -1,4 +1,9 @@
-import type { CopilotEvent, CopilotFix, CopilotMessage } from "@/shared/types/copilot";
+import type {
+  CopilotEvent,
+  CopilotFix,
+  CopilotGroupFix,
+  CopilotMessage,
+} from "@/shared/types/copilot";
 import { apiFetch } from "./http";
 
 export interface CopilotTurnInput {
@@ -8,6 +13,8 @@ export interface CopilotTurnInput {
   messages: CopilotMessage[];
   /** A fix turn: the call-analysis finding to fix. */
   fix?: CopilotFix;
+  /** A group fix turn: an issue across calls. */
+  group_fix?: CopilotGroupFix;
 }
 
 /** Split streamed NDJSON text into complete events; `rest` is a partial last line. */

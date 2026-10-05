@@ -1,6 +1,7 @@
 """A whole copilot turn through the node graph, with a scripted model."""
 
 import asyncio
+import json
 import shutil
 from pathlib import Path
 
@@ -155,3 +156,25 @@ def test_a_fix_starts_at_the_fix_node_and_runs_the_build_loop():
     assert "# Your step: plan the change" in first[0]["content"]
     assert "Suggested fix: Add a bye." in first[-1]["content"]
     assert events[-2] == {"type": "reply", "text": "Added a goodbye so the call can end."}
+
+
+def test_a_group_fix_proposes_a_fix_and_ends_with_a_question():
+    group = {
+        "kind": "stuck",
+        "node": "greeting",
+        "version": 2,
+        "call_count": 3,
+        "causes": ["No way out."],
+    }
+    answer = {"reason": "r", "common_cause": "greeting has no action.", "suggestion": "Add a goodbye action."}
+    model = ScriptedModel(reply(json.dumps(answer)))
+    service = CopilotService(model, "test-model", COPILOT_DIR)
+
+    async def collect():
+        messages = [{"role": "user", "content": 'Fix "Stuck in greeting" across 3 calls (v2).'}]
+        return [event async for event in service.run_turn(AGENT, messages, group_fix=group)]
+
+    events = asyncio.run(collect())
+    assert [e["type"] for e in events] == ["activity", "note", "questions", "done"]
+    assert len(model.requests) == 1  # one model call; no edits until the user answers
+    assert "# Your step: propose one fix" in model.requests[0]["messages"][0]["content"]

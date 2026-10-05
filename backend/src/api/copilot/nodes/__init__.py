@@ -2,6 +2,7 @@ from api.copilot.nodes.base import CopilotNode, DecisionNode, TextNode, ToolNode
 from api.copilot.nodes.executor import EDIT_TOOLS, ExecutorNode
 from api.copilot.nodes.explainer import ExplainerNode
 from api.copilot.nodes.fix import FixNode
+from api.copilot.nodes.group_fix import GroupFixNode
 from api.copilot.nodes.planner import PlannerNode
 from api.copilot.nodes.resolve_intent import ResolveIntentNode
 from api.copilot.nodes.reviewer import ReviewerNode
@@ -14,6 +15,7 @@ __all__ = [
     "ExecutorNode",
     "ExplainerNode",
     "FixNode",
+    "GroupFixNode",
     "PlannerNode",
     "ResolveIntentNode",
     "ReviewerNode",
