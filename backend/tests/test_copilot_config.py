@@ -4,7 +4,7 @@ import inspect
 
 from api.copilot.graph import build_graph
 from api.copilot.model import CopilotModel
-from api.copilot.nodes import EDIT_TOOLS, DecisionNode
+from api.copilot.nodes import EDIT_TOOLS, DecisionNode, TextNode, ToolNode
 from api.copilot.prompts import PromptLibrary
 from config import COPILOT_DIR
 
@@ -14,9 +14,11 @@ PROMPTS = PromptLibrary(COPILOT_DIR)
 GRAPH = build_graph(CopilotModel(ScriptedModel(), "test-model"), PROMPTS)
 
 
-def test_every_node_has_a_prompt_and_every_deciding_node_a_schema():
+def test_every_node_that_calls_the_model_has_a_prompt_and_every_deciding_node_a_schema():
     assert (COPILOT_DIR / "shared.md").is_file()
     for name, node in GRAPH.nodes.items():
+        if not isinstance(node, DecisionNode | ToolNode | TextNode):
+            continue  # no model call (fix): no prompt
         assert (COPILOT_DIR / f"{name}.md").is_file(), name
         if isinstance(node, DecisionNode):
             assert PROMPTS.schema(name), name
