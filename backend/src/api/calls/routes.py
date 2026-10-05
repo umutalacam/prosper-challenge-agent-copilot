@@ -4,12 +4,15 @@
 #
 #   GET /api/agents/{agent_id}/calls?limit=50&outcome=…   recent calls, newest first
 #                                                        (outcome repeatable: completed, abandoned, …)
-#   GET /api/agents/{agent_id}/calls/{call_id}    one call: issues, steps, transcript, timeline, final state
+#   GET /api/agents/{agent_id}/calls/{call_id}    one call: issues, steps, analysis, flags, transcript, …
+#   POST /api/agents/{agent_id}/calls/{call_id}/flags   {reason} → 201: a customer flags the call;
+#                                                        its AI analysis reruns in the background
 #
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from pydantic import BaseModel, StringConstraints
 
 from api.calls.repository import Outcome
 from api.calls.service import CallRecordService
@@ -50,3 +53,27 @@ def get_call(agent_id: str, call_id: str, calls: Calls) -> dict[str, Any]:
     """
     return calls.to_response(calls.get(agent_id, call_id))
 
+
+
+class FlagRequest(BaseModel):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
+    """What went wrong, in the customer's words."""
+
+
+@router.post("/{call_id}/flags", status_code=201)
+def flag_call(
+    agent_id: str, call_id: str, request: FlagRequest, calls: Calls, background: BackgroundTasks
+) -> dict[str, Any]:
+    """Flag one of an agent's calls: a customer says something went wrong. The call's
+    AI analysis goes back to pending and reruns after the response, with the flag.
+
+    :param agent_id: The agent the call belongs to.
+    :param call_id: The call's id.
+    :param request: The reason.
+    :param calls: The call record service.
+    :param background: Where the reanalysis is scheduled.
+    :return: The stored flag.
+    """
+    flag = calls.flag(agent_id, call_id, request.reason)
+    background.add_task(calls.reanalyze, call_id)
+    return CallRecordService.flag_response(flag)

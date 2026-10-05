@@ -8,7 +8,7 @@
     },
     "findings": {
       "type": "array",
-      "description": "One per issue, in the order given",
+      "description": "One per issue, then one per customer flag, in the order given",
       "items": {
         "type": "object",
         "properties": {

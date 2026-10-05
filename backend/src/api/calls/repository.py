@@ -43,7 +43,7 @@ class CallIssue:
 
 
 # Where a call's AI analysis is: ``pending`` while the model works, then ``done`` or
-# ``failed`` for good.
+# ``failed`` — until a new customer flag sends it back to ``pending``.
 AnalysisStatus = Literal["pending", "done", "failed"]
 
 
@@ -73,6 +73,15 @@ class CallAnalysis:
 
 
 @dataclass(frozen=True)
+class CallFlag:
+    """A customer's report that a call went wrong."""
+
+    id: int
+    reason: str
+    created_at: datetime
+
+
+@dataclass(frozen=True)
 class CallRecord:
     id: str
     agent_id: str
@@ -85,7 +94,8 @@ class CallRecord:
     path: list[str]
     final_state: dict[str, Any]
     events: list[Event]
-    analysis: CallAnalysis | None = None  # only for calls with issues
+    analysis: CallAnalysis | None = None  # only for calls with issues or flags
+    flags: list[CallFlag] = field(default_factory=list)  # customers' reports, oldest first
 
     @property
     def duration_ms(self) -> int:
@@ -127,6 +137,7 @@ class CallSummary:
     end_node: str | None
     path: list[str]
     issues: list[CallIssue]
+    flag_count: int = 0
 
 
 class CallNotFound(Exception):
@@ -187,6 +198,22 @@ class CallRepository:
         with self._transaction() as conn:
             CallRepository._upsert_analysis(conn, call_id, analysis)
 
+    def add_flag(self, call_id: str, reason: str) -> CallFlag:
+        """Store a customer's flag on a call.
+
+        :param call_id: The stored call.
+        :param reason: What went wrong, in the customer's words.
+        :return: The stored flag.
+        """
+        now = datetime.now(UTC)
+        created_at = now.replace(microsecond=now.microsecond // 1000 * 1000)  # as stored: milliseconds
+        with self._transaction() as conn:
+            cursor = conn.execute(
+                "INSERT INTO call_flags (call_id, reason, created_at) VALUES (?, ?, ?)",
+                (call_id, reason, created_at.isoformat(timespec="milliseconds")),
+            )
+        return CallFlag(id=cursor.lastrowid or 0, reason=reason, created_at=created_at)
+
     def list_for_agent(
         self, agent_id: str, limit: int = 50, outcomes: Collection[Outcome] | None = None
     ) -> list[CallSummary]:
@@ -206,7 +233,8 @@ class CallRepository:
                 "SELECT id, agent_version, started_at, ended_at, outcome, end_node, path,"
                 " (SELECT json_group_array(json_object('kind', kind, 'node', node, 'step', step,"
                 "         'at_ms', at_ms, 'replies', replies, 'message', message))"
-                "    FROM (SELECT * FROM call_issues WHERE call_id = calls.id ORDER BY rowid)) AS issues"
+                "    FROM (SELECT * FROM call_issues WHERE call_id = calls.id ORDER BY rowid)) AS issues,"
+                " (SELECT count(*) FROM call_flags WHERE call_id = calls.id) AS flag_count"
                 f" FROM calls WHERE {where} ORDER BY started_at DESC LIMIT ?",
                 (*params, limit),
             ).fetchall()
@@ -222,6 +250,7 @@ class CallRepository:
                 end_node=r["end_node"],
                 path=json.loads(r["path"]),
                 issues=[CallIssue(**issue) for issue in json.loads(r["issues"])],
+                flag_count=r["flag_count"],
             )
             for r in rows
         ]
@@ -230,7 +259,7 @@ class CallRepository:
         """One stored call in full.
 
         :param call_id: The call's id.
-        :return: The call, with its timeline, final state and analysis.
+        :return: The call, with its timeline, final state, analysis and flags.
         :raises CallNotFound: If there's no such call.
         """
         with self._connect() as conn:
@@ -240,6 +269,9 @@ class CallRepository:
                 " FROM calls LEFT JOIN call_analyses AS a ON a.call_id = calls.id WHERE calls.id = ?",
                 (call_id,),
             ).fetchone()
+            flags = conn.execute(
+                "SELECT id, reason, created_at FROM call_flags WHERE call_id = ? ORDER BY id", (call_id,)
+            ).fetchall()
         if row is None:
             raise CallNotFound(call_id)
         analysis = None
@@ -265,6 +297,10 @@ class CallRepository:
             final_state=json.loads(row["final_state"]),
             events=json.loads(row["events"]),
             analysis=analysis,
+            flags=[
+                CallFlag(id=f["id"], reason=f["reason"], created_at=datetime.fromisoformat(f["created_at"]))
+                for f in flags
+            ],
         )
 
     @staticmethod

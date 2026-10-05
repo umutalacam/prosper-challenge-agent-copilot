@@ -39,7 +39,8 @@ class CopilotAnalyzer:
 
         :param call: The finished call.
         :param agent: The agent's body at the version the call ran.
-        :param issues: What went wrong (CallAnalyzer.issues).
+        :param issues: What went wrong by the fixed rules (CallAnalyzer.issues); the call's
+            customer flags are sent too.
         :param steps: The call's walk through the agent (CallAnalyzer.steps).
         :return: A ``done`` analysis: a summary and one finding per issue.
         :raises CopilotError: If the model refuses or its answer isn't valid JSON.
@@ -51,6 +52,10 @@ class CopilotAnalyzer:
             "steps": steps,
             "transcript": call.transcript,
         }
+        if call.flags:
+            call_facts["flags"] = [
+                {"reason": flag.reason, "flagged_at": flag.created_at.isoformat()} for flag in call.flags
+            ]
         chat = [
             {"role": "system", "content": (self._directory / "analysis.md").read_text()},
             {"role": "user", "content": "The agent:\n```json\n" + json.dumps(agent, indent=2) + "\n```"},

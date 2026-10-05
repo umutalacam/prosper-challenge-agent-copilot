@@ -149,3 +149,35 @@ def test_a_pending_analysis_that_never_finished_reads_as_failed(service: CallRec
 
     calls.set_analysis("c1", CallAnalysis.pending())  # a fresh one is still pending
     assert service.to_response(calls.get("c1"))["analysis"]["status"] == "pending"
+
+
+def test_flagging_a_clean_call_starts_an_analysis_with_the_flag(
+    service: CallRecordService, calls: CallRepository, model: ScriptedModel
+):
+    asyncio.run(service.save(call("clean", outcome="completed")))
+    assert model.requests == [] and calls.get("clean").analysis is None  # nothing to analyze
+
+    flag = service.flag("desk", "clean", "Booked the wrong day")
+    assert calls.get("clean").analysis.status == "pending"
+    assert calls.get("clean").flags == [flag]
+
+    asyncio.run(service.reanalyze("clean"))
+    assert calls.get("clean").analysis.status == "done"
+    sent = model.requests[0]["messages"][-1]["content"]
+    assert '"reason": "Booked the wrong day"' in sent
+
+
+def test_a_new_flag_replaces_a_finished_analysis(service: CallRecordService, calls: CallRepository):
+    asyncio.run(service.save(call("c1", stuck_in="n0")))
+    assert calls.get("c1").analysis.status == "done"
+    service.flag("desk", "c1", "Rude")
+    assert calls.get("c1").analysis.status == "pending"
+
+
+def test_flagging_another_agents_call_is_not_found(
+    db: Path, service: CallRecordService, calls: CallRepository
+):
+    AgentRepository(db).create("billing", make_agent("Billing"))
+    calls.save(call("theirs", "billing"), [])
+    with pytest.raises(CallNotFound):
+        service.flag("desk", "theirs", "x")

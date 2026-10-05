@@ -46,6 +46,7 @@ def test_lists_an_agents_calls_newest_first(client: TestClient, api_db: Path):
             "issues": [
                 {"kind": "stuck", "node": "n0", "step": 0, "at_ms": 900, "replies": 3, "message": None},
             ],
+            "flag_count": 0,
         },
         {
             "id": "older",
@@ -56,6 +57,7 @@ def test_lists_an_agents_calls_newest_first(client: TestClient, api_db: Path):
             "end_node": "n0",
             "path": ["n0"],
             "issues": [],
+            "flag_count": 0,
         },
     ]
     assert len(client.get(f"/api/agents/{agent_id}/calls", params={"limit": 1}).json()) == 1
@@ -106,3 +108,28 @@ def test_the_list_filters_by_outcome(client: TestClient, api_db: Path):
     assert ids(outcome=["completed", "error"]) == ["broke", "done"]
     assert ids() == ["broke", "left", "done"]
     assert client.get(f"/api/agents/{agent_id}/calls", params={"outcome": "lost"}).status_code == 422
+
+
+def test_flagging_a_call_stores_the_flag_and_reruns_its_analysis(client: TestClient, api_db: Path):
+    agent_id = seeded_agent(client)
+    seed(api_db, make_call("clean", agent_id, outcome="completed"))  # no issues: no analysis yet
+    url = f"/api/agents/{agent_id}/calls/clean"
+
+    response = client.post(f"{url}/flags", json={"reason": "  Booked the wrong day  "})
+    assert response.status_code == 201
+    flag = response.json()
+    assert flag["reason"] == "Booked the wrong day" and isinstance(flag["id"], int)
+
+    call = client.get(url).json()
+    assert [f["reason"] for f in call["flags"]] == ["Booked the wrong day"]
+    # The background reanalysis ran with the test client's analyzer, which has no answers: failed.
+    assert call["analysis"]["status"] == "failed"
+    assert client.get(f"/api/agents/{agent_id}/calls").json()[0]["flag_count"] == 1
+
+
+def test_flagging_rejects_empty_reasons_and_unknown_calls(client: TestClient, api_db: Path):
+    agent_id = seeded_agent(client)
+    seed(api_db, make_call("c1", agent_id))
+    assert client.post(f"/api/agents/{agent_id}/calls/c1/flags", json={"reason": "   "}).status_code == 422
+    assert client.post(f"/api/agents/{agent_id}/calls/nope/flags", json={"reason": "x"}).status_code == 404
+    assert client.post("/api/agents/nope/calls/c1/flags", json={"reason": "x"}).status_code == 404

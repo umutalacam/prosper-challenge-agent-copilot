@@ -81,3 +81,16 @@ def test_a_calls_issues_are_stored_with_it_and_deleted_with_it(db: Path, calls: 
     AgentRepository(db).delete("desk")
     with sqlite3.connect(db) as conn:
         assert conn.execute("SELECT count(*) FROM call_issues").fetchone() == (0,)
+
+
+def test_flags_are_stored_counted_and_deleted_with_the_agent(db: Path, calls: CallRepository):
+    calls.save(call("c1"), [])
+    first = calls.add_flag("c1", "Booked the wrong day")
+    second = calls.add_flag("c1", "Rude")
+    assert [f.reason for f in calls.get("c1").flags] == ["Booked the wrong day", "Rude"]
+    assert calls.get("c1").flags == [first, second]
+    assert calls.list_for_agent("desk")[0].flag_count == 2
+
+    AgentRepository(db).delete("desk")
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT count(*) FROM call_flags").fetchone() == (0,)

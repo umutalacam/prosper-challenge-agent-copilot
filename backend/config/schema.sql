@@ -90,3 +90,14 @@ CREATE TABLE IF NOT EXISTS call_analyses (
     model       TEXT,
     updated_at  TEXT NOT NULL
 ) STRICT;
+
+-- Customers' reports that a call went wrong ("it booked the wrong day"), any number
+-- per call. A new flag restarts the call's AI analysis, with the reason as evidence.
+CREATE TABLE IF NOT EXISTS call_flags (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id     TEXT NOT NULL REFERENCES calls (id) ON DELETE CASCADE,
+    reason      TEXT NOT NULL,
+    created_at  TEXT NOT NULL
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS call_flags_by_call ON call_flags (call_id);

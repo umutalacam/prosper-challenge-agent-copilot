@@ -2,8 +2,10 @@
 # CallRecordService — stored voice calls. The voice bot saves each call when it
 # ends (``save``): the call is stored with the issues CallAnalyzer finds in it,
 # then CopilotAnalyzer explains them (a call with issues is stored with a pending
-# analysis, set to done or failed when the model answers). The routes
-# (api/calls/routes.py) read them back, shaped by to_summary / to_response.
+# analysis, set to done or failed when the model answers). Customers flag calls
+# (``flag``): a flag counts as a problem too, so it sends the analysis back to
+# pending and ``reanalyze`` runs it again with the flags as evidence. The routes
+# (api/calls/routes.py) read calls back, shaped by to_summary / to_response.
 #
 
 import asyncio
@@ -18,7 +20,15 @@ from api.agents.repository import AgentNotFound
 from api.agents.service import AgentService
 from api.calls.copilot_analyzer import CopilotAnalyzer
 from api.calls.analyzer import CallAnalyzer
-from api.calls.repository import CallAnalysis, CallNotFound, CallRecord, CallRepository, CallSummary, Outcome
+from api.calls.repository import (
+    CallAnalysis,
+    CallFlag,
+    CallNotFound,
+    CallRecord,
+    CallRepository,
+    CallSummary,
+    Outcome,
+)
 
 
 class CallRecordService:
@@ -72,15 +82,44 @@ class CallRecordService:
         logger.info(f"Saved call {record.id} ({record.outcome}, {len(issues)} issues)")
         return True
 
-    async def _analyze(self, record: CallRecord) -> None:
-        """Have the model explain a stored call's issues and store the analysis: ``done``,
-        or ``failed`` with the reason. Nothing to do for a call without issues. Never
-        raises: the call is stored either way.
+    def flag(self, agent_id: str, call_id: str, reason: str) -> CallFlag:
+        """Store a customer's flag on one of an agent's calls, and send the call's analysis
+        back to pending: run ``reanalyze`` next to explain the flag.
 
-        :param record: The call, as ``_store`` stored it.
+        :param agent_id: The agent the call belongs to.
+        :param call_id: The call's id.
+        :param reason: What went wrong, in the customer's words.
+        :return: The stored flag.
+        :raises AgentNotFound: If there's no such agent.
+        :raises CallNotFound: If the agent has no such call (including another agent's).
+        """
+        self.get(agent_id, call_id)
+        flag = self._repository.add_flag(call_id, reason)
+        self._repository.set_analysis(call_id, CallAnalysis.pending())
+        logger.info(f"Call {call_id} flagged: {reason}")
+        return flag
+
+    async def reanalyze(self, call_id: str) -> None:
+        """Analyze a stored call again, as it is now (every flag included). Never raises.
+
+        :param call_id: The stored call.
+        """
+        try:
+            record = await asyncio.to_thread(self._repository.get, call_id)
+        except Exception:
+            logger.exception(f"Couldn't reanalyze call {call_id}")
+            return
+        await self._analyze(record)
+
+    async def _analyze(self, record: CallRecord) -> None:
+        """Have the model explain a stored call's issues and flags, and store the analysis:
+        ``done``, or ``failed`` with the reason. Nothing to do for a call with neither.
+        Never raises: the call is stored either way.
+
+        :param record: The stored call.
         """
         issues = self._analyzer.issues(record)
-        if not issues:
+        if not issues and not record.flags:
             return
         try:
             agent = await asyncio.to_thread(self._agents.get_version, record.agent_id, record.agent_version)
@@ -138,6 +177,7 @@ class CallRecordService:
             "end_node": call.end_node,
             "path": call.path,
             "issues": [asdict(issue) for issue in call.issues],
+            "flag_count": call.flag_count,
         }
 
     def to_response(self, call: CallRecord) -> dict[str, Any]:
@@ -160,10 +200,20 @@ class CallRecordService:
             "issues": [asdict(issue) for issue in self._analyzer.issues(call)],
             "steps": self._analyzer.steps(call),
             "analysis": self._analysis_response(call.analysis),
+            "flags": [CallRecordService.flag_response(flag) for flag in call.flags],
             "transcript": call.transcript,
             "final_state": call.final_state,
             "events": call.events,
         }
+
+    @staticmethod
+    def flag_response(flag: CallFlag) -> dict[str, Any]:
+        """A flag, as the API returns it.
+
+        :param flag: The stored flag.
+        :return: Its JSON-ready fields.
+        """
+        return {"id": flag.id, "reason": flag.reason, "created_at": flag.created_at.isoformat()}
 
     @staticmethod
     def _analysis_response(analysis: CallAnalysis | None) -> dict[str, Any] | None:
