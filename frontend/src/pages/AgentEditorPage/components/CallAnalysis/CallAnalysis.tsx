@@ -1,6 +1,9 @@
 import type { CallAnalysis as Analysis, CallFinding } from "@/shared/types/call";
-import { Button, FixIcon } from "@/shared/ui";
+import { Button, CheckIcon, SparklesIcon } from "@/shared/ui";
+import { findingKey } from "../../lib/callFindings";
 import styles from "./CallAnalysis.module.scss";
+
+const NONE_SENT: ReadonlySet<string> = new Set();
 
 export interface CallAnalysisProps {
   analysis: Analysis;
@@ -8,13 +11,20 @@ export interface CallAnalysisProps {
   onFix?: (finding: CallFinding) => void;
   /** The copilot is busy with another turn. */
   fixDisabled?: boolean;
+  /** Findings already handed to the copilot (by `findingKey`): their button is spent. */
+  sent?: ReadonlySet<string>;
 }
 
 /**
  * The AI's take on a call with issues: what went wrong, and per issue why and
  * what to change in the agent. Written after the call, so it may still be pending.
  */
-export function CallAnalysis({ analysis, onFix, fixDisabled = false }: CallAnalysisProps) {
+export function CallAnalysis({
+  analysis,
+  onFix,
+  fixDisabled = false,
+  sent = NONE_SENT,
+}: CallAnalysisProps) {
   if (analysis.status === "pending") {
     return (
       <p className={styles.pending} aria-live="polite">
@@ -44,20 +54,27 @@ export function CallAnalysis({ analysis, onFix, fixDisabled = false }: CallAnaly
                 </p>
               )}
               {/* No suggestion: the analysis found nothing to change here. */}
-              {onFix && finding.suggestion && (
-                <Button
-                  size="sm"
-                  className={styles.fix}
-                  disabled={fixDisabled}
-                  title={fixDisabled ? "The copilot is busy" : undefined}
-                  onClick={() => {
-                    onFix(finding);
-                  }}
-                >
-                  <FixIcon width={12} height={12} />
-                  Fix with copilot
-                </Button>
-              )}
+              {onFix &&
+                finding.suggestion &&
+                (sent.has(findingKey(finding)) ? (
+                  <Button size="sm" className={styles.fix} disabled>
+                    <CheckIcon width={12} height={12} />
+                    Sent to copilot
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className={styles.fix}
+                    disabled={fixDisabled}
+                    title={fixDisabled ? "The copilot is busy" : undefined}
+                    onClick={() => {
+                      onFix(finding);
+                    }}
+                  >
+                    <SparklesIcon width={12} height={12} />
+                    Fix with copilot
+                  </Button>
+                ))}
             </li>
           ))}
         </ul>

@@ -13,6 +13,7 @@ import {
   CheckLg,
   ChevronDoubleRight,
   Clock,
+  Flag,
   Gear,
   List,
   Robot,
@@ -65,5 +66,7 @@ export const ChatIcon = appIcon(ChatDots, "ChatIcon");
 export const CheckIcon = appIcon(CheckLg, "CheckIcon");
 /** Clock: a duration. */
 export const ClockIcon = appIcon(Clock, "ClockIcon");
+/** Flag: a customer's report that a call went wrong. */
+export const FlagIcon = appIcon(Flag, "FlagIcon");
 /** Wrench: fix something (with the copilot). */
 export const FixIcon = appIcon(Wrench, "FixIcon");

@@ -83,6 +83,17 @@ export interface CallSummary {
   path: string[];
   /** What went wrong, in timeline order; empty for a clean call. */
   issues: CallIssue[];
+  /** How many times customers flagged it. */
+  flag_count: number;
+}
+
+/** A customer's report that a call went wrong. A new flag reruns the call's AI analysis. */
+export interface CallFlag {
+  id: number;
+  /** What went wrong, in the customer's words. */
+  reason: string;
+  /** ISO 8601. */
+  created_at: string;
 }
 
 /** One turn of what was said. */
@@ -126,8 +137,10 @@ export interface CallDetail extends CallSummary {
   ended_at: string;
   /** The walk through the agent; empty if the flow never started. */
   steps: PathStep[];
-  /** The AI analysis; null for a call without issues. */
+  /** The AI analysis; null for a call without issues or flags. */
   analysis: CallAnalysis | null;
+  /** Customers' flags, oldest first. */
+  flags: CallFlag[];
   transcript: TranscriptTurn[];
   final_state: FlowState;
   events: CallEvent[];

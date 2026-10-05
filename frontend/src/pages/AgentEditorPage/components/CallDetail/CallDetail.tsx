@@ -2,6 +2,7 @@ import { useState } from "react";
 import { errorMessage, useCall } from "@/shared/api";
 import type { CopilotFix } from "@/shared/types/copilot";
 import { ArrowLeftIcon, Button, ChatIcon } from "@/shared/ui";
+import { findingKey } from "../../lib/callFindings";
 import { CallOverview } from "../CallOverview/CallOverview";
 import { CallTranscript } from "../CallTranscript/CallTranscript";
 import styles from "./CallDetail.module.scss";
@@ -26,6 +27,8 @@ export interface CallDetailProps {
 export function CallDetail({ agentId, callId, now, onBack, onFix, fixDisabled }: CallDetailProps) {
   const call = useCall(agentId, callId);
   const [view, setView] = useState<"overview" | "transcript">("overview");
+  // Findings sent to the copilot while this call is open; reopening the call starts over.
+  const [sentFixes, setSentFixes] = useState<ReadonlySet<string>>(() => new Set());
   const inTranscript = view === "transcript";
   const said = call.data?.transcript.length ?? 0;
 
@@ -53,7 +56,19 @@ export function CallDetail({ agentId, callId, now, onBack, onFix, fixDisabled }:
         ) : inTranscript ? (
           <CallTranscript turns={call.data.transcript} />
         ) : (
-          <CallOverview call={call.data} now={now} onFix={onFix} fixDisabled={fixDisabled} />
+          <CallOverview
+            call={call.data}
+            now={now}
+            onFix={
+              onFix &&
+              ((fix) => {
+                setSentFixes((keys) => new Set(keys).add(findingKey(fix)));
+                onFix(fix);
+              })
+            }
+            fixDisabled={fixDisabled}
+            sentFixes={sentFixes}
+          />
         )}
       </div>
       {call.isSuccess && !inTranscript && (

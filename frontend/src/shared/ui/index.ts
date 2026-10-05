@@ -23,6 +23,7 @@ export {
   ClockIcon,
   CloseIcon,
   FixIcon,
+  FlagIcon,
   MenuIcon,
   PhoneIcon,
   RobotIcon,

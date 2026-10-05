@@ -36,6 +36,11 @@ export function CallListItem({ call, now, onOpen }: CallListItemProps) {
             <span className={styles.name}>{callerName(call.id)}</span>
             <Badge tone={outcome.tone}>{outcome.label}</Badge>
             {stuck && <Badge tone="brand">Stuck in {stuck}</Badge>}
+            {call.flag_count > 0 && (
+              <Badge tone="danger">
+                Flagged{call.flag_count > 1 ? ` ×${String(call.flag_count)}` : ""}
+              </Badge>
+            )}
           </span>
           <span className={styles.meta}>
             <span className={styles.duration}>

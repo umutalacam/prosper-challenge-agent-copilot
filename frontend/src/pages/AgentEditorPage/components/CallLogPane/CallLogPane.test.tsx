@@ -25,6 +25,7 @@ const finished: CallSummary = {
   end_node: "confirm",
   path: ["greeting", "confirm"],
   issues: [],
+  flag_count: 0,
 };
 
 const broken: CallSummary = {
@@ -36,6 +37,7 @@ const broken: CallSummary = {
   end_node: "greeting",
   path: ["greeting"],
   issues: [stuckIn("greeting")],
+  flag_count: 2,
 };
 
 const detail: CallDetail = {
@@ -75,6 +77,7 @@ const detail: CallDetail = {
     ],
     error: null,
   },
+  flags: [],
   transcript: [
     { speaker: "bot", node: "greeting", text: "Hi, who's calling?", at_ms: 300 },
     { speaker: "caller", node: "greeting", text: "Ana.", at_ms: 1200 },
@@ -86,7 +89,7 @@ const detail: CallDetail = {
 
 /** A fake calls API: `calls` answers the list (filtered by any `outcome` params), `details` each call. */
 function stubApi(calls: CallSummary[] | "fail", details: CallDetail[] = [detail]) {
-  const fetchMock = vi.fn((url: string) => {
+  const fetchMock = vi.fn((url: string, init?: RequestInit) => {
     const { pathname, searchParams } = new URL(url, "http://localhost");
     if (calls === "fail") {
       return Promise.resolve(Response.json({ detail: "Database is down" }, { status: 500 }));
@@ -96,6 +99,15 @@ function stubApi(calls: CallSummary[] | "fail", details: CallDetail[] = [detail]
       return Promise.resolve(
         Response.json(outcomes.length ? calls.filter((c) => outcomes.includes(c.outcome)) : calls),
       );
+    }
+    const flagged = details.find((d) => pathname === `/api/agents/desk/calls/${d.id}/flags`);
+    if (flagged && init?.method === "POST") {
+      // Like the server: store the flag, and the analysis goes back to work.
+      const { reason } = JSON.parse(init.body as string) as { reason: string };
+      const flag = { id: flagged.flags.length + 1, reason, created_at: new Date().toISOString() };
+      flagged.flags = [...flagged.flags, flag];
+      flagged.analysis = { status: "pending", summary: null, findings: [], error: null };
+      return Promise.resolve(Response.json(flag, { status: 201 }));
     }
     const one = details.find((d) => pathname === `/api/agents/desk/calls/${d.id}`);
     if (one) return Promise.resolve(Response.json(one));
@@ -132,6 +144,8 @@ describe("CallLogPane", () => {
     const [first, second] = rows as [HTMLElement, HTMLElement];
     expect(first.textContent).toContain("Error");
     expect(first.textContent).toContain("Stuck in greeting");
+    expect(first.textContent).toContain("Flagged ×2");
+    expect(second.textContent).not.toContain("Flagged");
     expect(first.textContent).toContain("0:42");
     expect(first.textContent).toContain("5 minutes ago");
     expect(second.textContent).toContain("Completed");
@@ -242,6 +256,34 @@ describe("CallLogPane", () => {
     expect(onFix).toHaveBeenCalledWith({ call_id: "c-done", ...finding });
   });
 
+  it("spends a fix button once clicked, until the call is opened again", async () => {
+    stubApi([finished]);
+    const onFix = vi.fn();
+    const user = renderPane({ onFix });
+    const openCall = async () => {
+      await user.click(
+        within(await screen.findByRole("list", { name: "Calls" })).getByRole("button"),
+      );
+    };
+    await openCall();
+
+    await user.click(await screen.findByRole("button", { name: "Fix with copilot" }));
+    const sent = screen.getByRole("button", { name: "Sent to copilot" });
+    expect((sent as HTMLButtonElement).disabled).toBe(true);
+    expect(onFix).toHaveBeenCalledTimes(1);
+
+    // Still spent after a look at the transcript…
+    await user.click(screen.getByRole("button", { name: /View transcript/ }));
+    await user.click(screen.getByRole("button", { name: "Overview" }));
+    expect(screen.getByRole("button", { name: "Sent to copilot" })).toBeTruthy();
+
+    // …but back to the list and in again, it's ready.
+    await user.click(screen.getByRole("button", { name: "All calls" }));
+    await openCall();
+    const ready = await screen.findByRole("button", { name: "Fix with copilot" });
+    expect((ready as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it("disables the fix button while the copilot is busy", async () => {
     stubApi([finished]);
     const user = renderPane({ onFix: vi.fn(), fixDisabled: true });
@@ -260,6 +302,31 @@ describe("CallLogPane", () => {
     );
     await screen.findByRole("list", { name: "Path through the agent" });
     expect(screen.queryByRole("heading", { name: "AI analysis" })).toBeNull();
+  });
+
+  it("flags a call by hand and shows the analysis rerunning", async () => {
+    const fresh: CallDetail = { ...detail, flags: [] };
+    const fetchMock = stubApi([finished], [fresh]);
+    const user = renderPane();
+    await user.click(
+      within(await screen.findByRole("list", { name: "Calls" })).getByRole("button"),
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Flag this call" }));
+    await user.type(screen.getByLabelText("What went wrong?"), "Booked the wrong day");
+    await user.click(screen.getByRole("button", { name: "Flag" }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/agents/desk/calls/c-done/flags",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ reason: "Booked the wrong day" }),
+      }),
+    );
+    const flags = await screen.findByRole("list", { name: "Flags" });
+    expect(flags.textContent).toContain("Booked the wrong day");
+    expect(await screen.findByText("Analyzing this call…")).toBeTruthy();
+    expect(screen.queryByLabelText("What went wrong?")).toBeNull(); // the form closed
   });
 
   it("says when there are no calls", async () => {

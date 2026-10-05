@@ -7,6 +7,7 @@ import { OUTCOMES } from "../../lib/callOutcomes";
 import { formatDuration, formatRelative } from "@/shared/lib/time";
 import { CallAnalysis } from "../CallAnalysis/CallAnalysis";
 import { CallAvatar } from "../CallAvatar/CallAvatar";
+import { CallFlags } from "../CallFlags/CallFlags";
 import { CallPath } from "../CallPath/CallPath";
 import styles from "./CallOverview.module.scss";
 
@@ -18,13 +19,16 @@ export interface CallOverviewProps {
   onFix?: (fix: CopilotFix) => void;
   /** The copilot is busy with another turn. */
   fixDisabled?: boolean;
+  /** Findings already handed to the copilot (by `findingKey`). */
+  sentFixes?: ReadonlySet<string>;
 }
 
 /**
- * How a call went at a glance: who, outcome, length, the AI analysis (calls with
- * issues), the path through the agent, and anything worth a look. (CallDetail puts the transcript button under it.)
+ * How a call went at a glance: who, outcome, length, customers' flags, the AI
+ * analysis (calls with issues or flags), the path through the agent, and anything
+ * worth a look. (CallDetail puts the transcript button under it.)
  */
-export function CallOverview({ call, now, onFix, fixDisabled }: CallOverviewProps) {
+export function CallOverview({ call, now, onFix, fixDisabled, sentFixes }: CallOverviewProps) {
   const outcome = OUTCOMES[call.outcome];
   const stuck = call.issues.find((issue) => issue.kind === "stuck")?.node ?? null;
   const failure = call.issues.find((issue) => issue.kind === "error");
@@ -51,6 +55,8 @@ export function CallOverview({ call, now, onFix, fixDisabled }: CallOverviewProp
         </div>
       </header>
 
+      <CallFlags call={call} now={now} />
+
       {call.analysis && (
         <section className={styles.section} aria-labelledby={`${id}-analysis`}>
           <h3 id={`${id}-analysis`} className={styles.heading}>
@@ -66,6 +72,7 @@ export function CallOverview({ call, now, onFix, fixDisabled }: CallOverviewProp
               })
             }
             fixDisabled={fixDisabled}
+            sent={sentFixes}
           />
         </section>
       )}

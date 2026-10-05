@@ -1,4 +1,4 @@
-import type { CallDetail, CallOutcome, CallSummary } from "@/shared/types/call";
+import type { CallDetail, CallFlag, CallOutcome, CallSummary } from "@/shared/types/call";
 import { request } from "./http";
 
 export interface CallListOptions {
@@ -23,4 +23,11 @@ export const callsApi = {
   /** One of the agent's calls in full: transcript, timeline, final state. */
   get: (agentId: string, callId: string) =>
     request<CallDetail>(`${callsPath(agentId)}/${encodeURIComponent(callId)}`),
+
+  /** Flag a call: a customer says something went wrong. Its AI analysis reruns in the background. */
+  flag: (agentId: string, callId: string, reason: string) =>
+    request<CallFlag>(`${callsPath(agentId)}/${encodeURIComponent(callId)}/flags`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
 };

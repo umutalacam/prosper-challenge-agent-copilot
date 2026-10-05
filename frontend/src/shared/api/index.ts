@@ -14,6 +14,7 @@ export {
   useCall,
   useDeleteAgent,
   useDeployAgent,
+  useFlagCall,
   useSaveAgent,
   type SaveAgentInput,
 } from "./queries";

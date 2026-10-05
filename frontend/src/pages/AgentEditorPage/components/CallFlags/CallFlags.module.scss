@@ -1,0 +1,70 @@
+@use "@/shared/styles/tokens" as *;
+@use "@/shared/styles/mixins" as m;
+
+.flags {
+  @include m.stack($space-2);
+  font-size: $font-size-sm;
+}
+
+.list {
+  @include m.stack($space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+// One flag: the customer's words, tinted like the other things that went wrong.
+.flag {
+  display: flex;
+  align-items: baseline;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border-radius: $radius-md;
+  background: $color-danger-soft;
+}
+
+.mark {
+  flex: none;
+  align-self: center;
+  color: $color-danger;
+}
+
+.reason {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.when {
+  flex: none;
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+}
+
+.add {
+  @include m.cluster($space-2);
+  flex-wrap: wrap;
+}
+
+.note {
+  color: $color-text-muted;
+  font-size: $font-size-xs;
+}
+
+.form {
+  @include m.stack($space-2);
+}
+
+.label {
+  font-weight: 600;
+}
+
+.actions {
+  @include m.cluster($space-2);
+  justify-content: flex-end;
+}
+
+.error {
+  margin: 0;
+  color: $color-danger;
+}

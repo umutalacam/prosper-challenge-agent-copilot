@@ -127,3 +127,15 @@ export function useCall(agentId: string, callId: string) {
       query.state.data?.analysis?.status === "pending" ? ANALYSIS_POLL_MS : false,
   });
 }
+
+/**
+ * Flag one of an agent's calls. Refreshes the agent's calls: the list's flag count,
+ * and the call itself, whose analysis is pending again (`useCall` polls it).
+ */
+export function useFlagCall(agentId: string, callId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reason: string) => callsApi.flag(agentId, callId, reason),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: callKeys.agent(agentId) }),
+  });
+}
