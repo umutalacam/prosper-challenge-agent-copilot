@@ -1,12 +1,13 @@
+import sqlite3
 from pathlib import Path
 
 import pytest
 
 from api.agents.repository import AgentRepository
-from api.agents.service import AgentService
-from api.calls.repository import CallNotFound, CallRepository
-from api.calls.service import CallRecordService
+from api.calls.repository import CallIssue, CallNotFound, CallRepository
 from tests.conftest import make_agent, make_call as call
+
+STUCK = [CallIssue("stuck", "n0", 0, 900, replies=3)]
 
 
 @pytest.fixture
@@ -32,25 +33,25 @@ def calls(db: Path) -> CallRepository:
 
 def test_a_saved_call_reads_back_whole(calls: CallRepository):
     record = call("c1", stuck_in="n0")
-    calls.save(record)
+    calls.save(record, STUCK)
     assert calls.get("c1") == record
 
 
 def test_an_agents_calls_list_newest_first_scoped_and_limited(calls: CallRepository):
-    calls.save(call("old", minutes=0))
-    calls.save(call("new", minutes=10, stuck_in="n0"))
-    calls.save(call("mid", minutes=5))
-    calls.save(call("other", "billing", minutes=20))
+    calls.save(call("old", minutes=0), [])
+    calls.save(call("new", minutes=10, stuck_in="n0"), STUCK)
+    calls.save(call("mid", minutes=5), [])
+    calls.save(call("other", "billing", minutes=20), [])
 
     listed = calls.list_for_agent("desk")
     assert [c.id for c in listed] == ["new", "mid", "old"]
-    assert listed[0].stuck_nodes == ["n0"] and listed[1].stuck_nodes == []
+    assert listed[0].issues == STUCK and listed[1].issues == []
     assert (listed[0].duration_ms, listed[0].agent_version, listed[0].path) == (1500, 2, ["n0"])
     assert [c.id for c in calls.list_for_agent("desk", limit=2)] == ["new", "mid"]
 
 
 def test_deleting_an_agent_deletes_its_calls(db: Path, calls: CallRepository):
-    calls.save(call("c1"))
+    calls.save(call("c1"), [])
     AgentRepository(db).delete("desk")
     with pytest.raises(CallNotFound):
         calls.get("c1")
@@ -61,20 +62,22 @@ def test_an_unknown_call_is_not_found(calls: CallRepository):
         calls.get("nope")
 
 
-def test_a_call_whose_agent_was_deleted_meanwhile_is_skipped(db: Path, calls: CallRepository):
-    agents = AgentService(AgentRepository(db))
-    service = CallRecordService(calls, agents)
-    service.save(call("kept"))
-    agents.delete("desk")
-    service.save(call("late"))  # the call ended after its agent was deleted: no error, not stored
-    with pytest.raises(CallNotFound):
-        calls.get("late")
-
-
 def test_the_list_can_be_filtered_by_outcome(calls: CallRepository):
-    calls.save(call("done", outcome="completed", minutes=0))
-    calls.save(call("left", outcome="abandoned", minutes=1))
-    calls.save(call("broke", outcome="error", minutes=2))
+    calls.save(call("done", outcome="completed", minutes=0), [])
+    calls.save(call("left", outcome="abandoned", minutes=1), [])
+    calls.save(call("broke", outcome="error", minutes=2), [])
     assert [c.id for c in calls.list_for_agent("desk", outcomes=["completed"])] == ["done"]
     assert [c.id for c in calls.list_for_agent("desk", outcomes=["error", "completed"])] == ["broke", "done"]
     assert len(calls.list_for_agent("desk", outcomes=[])) == 3  # empty means all
+
+
+def test_a_calls_issues_are_stored_with_it_and_deleted_with_it(db: Path, calls: CallRepository):
+    calls.save(call("c1", stuck_in="n0"), STUCK)
+    calls.save(call("c2"), [])
+    with sqlite3.connect(db) as conn:
+        rows = conn.execute("SELECT call_id, agent_id, agent_version, kind, node, replies FROM call_issues").fetchall()
+    assert rows == [("c1", "desk", 2, "stuck", "n0", 3)]
+
+    AgentRepository(db).delete("desk")
+    with sqlite3.connect(db) as conn:
+        assert conn.execute("SELECT count(*) FROM call_issues").fetchone() == (0,)

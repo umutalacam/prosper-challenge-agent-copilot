@@ -2,8 +2,17 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { CallDetail, CallSummary } from "@/shared/types/call";
+import type { CallDetail, CallIssue, CallSummary } from "@/shared/types/call";
 import { CallLogPane } from "./CallLogPane";
+
+const stuckIn = (node: string, kind: CallIssue["kind"] = "stuck"): CallIssue => ({
+  kind,
+  node,
+  step: 0,
+  at_ms: 9_000,
+  replies: 3,
+  message: null,
+});
 
 const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
@@ -15,7 +24,7 @@ const finished: CallSummary = {
   outcome: "completed",
   end_node: "confirm",
   path: ["greeting", "confirm"],
-  stuck_nodes: [],
+  issues: [],
 };
 
 const broken: CallSummary = {
@@ -26,7 +35,7 @@ const broken: CallSummary = {
   outcome: "error",
   end_node: "greeting",
   path: ["greeting"],
-  stuck_nodes: ["greeting"],
+  issues: [stuckIn("greeting")],
 };
 
 const detail: CallDetail = {
@@ -34,6 +43,25 @@ const detail: CallDetail = {
   agent_id: "desk",
   agent_name: "Desk",
   ended_at: finished.started_at,
+  issues: [stuckIn("greeting", "long_stay")],
+  steps: [
+    {
+      node: "greeting",
+      entered_ms: 0,
+      stay_ms: 4_000,
+      replies: 3,
+      exit: { function: "record_caller", args: { name: "Ana" } },
+      ending: null,
+    },
+    {
+      node: "confirm",
+      entered_ms: 4_000,
+      stay_ms: 121_000,
+      replies: 1,
+      exit: null,
+      ending: "completed",
+    },
+  ],
   transcript: [
     { speaker: "bot", node: "greeting", text: "Hi, who's calling?", at_ms: 300 },
     { speaker: "caller", node: "greeting", text: "Ana.", at_ms: 1200 },
@@ -130,7 +158,10 @@ describe("CallLogPane", () => {
       "greeting",
       "confirm",
     ]);
+    expect(steps[0]?.textContent).toContain("name: Ana");
+    expect(steps[0]?.textContent).toContain("Long stay");
     expect(steps[1]?.textContent).toContain("Call completed");
+    expect(screen.queryByText("Worth a look")).toBeNull(); // a long stay isn't a failure
     expect(screen.queryByRole("list", { name: "Transcript" })).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "View transcript (3 messages)" }));
@@ -145,7 +176,7 @@ describe("CallLogPane", () => {
   });
 
   it("flags a call as stuck only if it ended stuck", async () => {
-    const longButFine = { ...finished, stuck_nodes: ["greeting"] };
+    const longButFine = { ...finished, issues: [stuckIn("greeting", "long_stay")] };
     stubApi([broken, longButFine]);
     renderPane();
     const [first, second] = (await within(

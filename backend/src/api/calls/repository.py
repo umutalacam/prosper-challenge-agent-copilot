@@ -1,7 +1,8 @@
 #
 # CallRepository — stored voice calls (SQLite, the `calls` table in
 # config/schema.sql, in the same database as the agents). A call is written once,
-# when it ends; rows are never updated.
+# when it ends, together with its issues (`call_issues`, for counting failures
+# across calls); rows are never updated.
 #
 
 from __future__ import annotations
@@ -10,7 +11,7 @@ import json
 import sqlite3
 from collections.abc import Collection, Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
@@ -21,6 +22,23 @@ Event = dict[str, Any]  # one timeline entry; "type" says which (see api/calls/r
 
 # How a call ended (CallRecorder.outcome_of; "error" when the pipeline raised).
 Outcome = Literal["completed", "abandoned", "not_started", "error"]
+
+# What went wrong in a call (CallAnalyzer.issues; the call_issues table in schema.sql).
+IssueKind = Literal["stuck", "long_stay", "error"]
+
+
+@dataclass(frozen=True)
+class CallIssue:
+    """Something worth a look in a call, as CallAnalyzer judged it. ``stuck``: the bot improvised in the node the
+    call ended in, unfinished (a failure); ``long_stay``: it improvised in a node but
+    the call moved on (a note); ``error``: the pipeline raised."""
+
+    kind: IssueKind
+    node: str | None  # where it happened; None for an error before the flow started
+    step: int | None  # its index in CallAnalyzer.steps; None if the flow never started
+    at_ms: int
+    replies: int | None = None  # stuck / long_stay: the bot reply that tipped it
+    message: str | None = None  # error: what the pipeline raised
 
 
 @dataclass(frozen=True)
@@ -76,7 +94,7 @@ class CallSummary:
     outcome: Outcome
     end_node: str | None
     path: list[str]
-    stuck_nodes: list[str]  # nodes where the bot improvised (a "stuck" event)
+    issues: list[CallIssue]
 
 
 class CallNotFound(Exception):
@@ -99,12 +117,13 @@ class CallRepository:
         with self._connect() as conn:
             conn.executescript(SCHEMA_SQL.read_text())
 
-    def save(self, record: CallRecord) -> None:
-        """Store a finished call.
+    def save(self, record: CallRecord, issues: list[CallIssue]) -> None:
+        """Store a finished call, with its issues.
 
         :param record: The call; its id must be new.
+        :param issues: What went wrong in it (CallAnalyzer.issues).
         """
-        with self._connect() as conn:
+        with self._transaction() as conn:
             conn.execute(
                 "INSERT INTO calls (id, agent_id, agent_version, agent_name, started_at, ended_at,"
                 " outcome, end_node, path, final_state, events)"
@@ -123,6 +142,7 @@ class CallRepository:
                     json.dumps(record.events),
                 ),
             )
+            CallRepository._insert_issues(conn, record, issues)
 
     def list_for_agent(
         self, agent_id: str, limit: int = 50, outcomes: Collection[Outcome] | None = None
@@ -132,7 +152,7 @@ class CallRepository:
         :param agent_id: The agent whose calls to list.
         :param limit: At most this many calls.
         :param outcomes: Only calls that ended one of these ways; None or empty for all.
-        :return: The calls, with the nodes each got stuck in.
+        :return: The calls, each with its issues.
         """
         where, params = "agent_id = ?", [agent_id]
         if outcomes:
@@ -141,9 +161,9 @@ class CallRepository:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT id, agent_version, started_at, ended_at, outcome, end_node, path,"
-                " (SELECT json_group_array(DISTINCT json_extract(value, '$.node'))"
-                "    FROM json_each(calls.events)"
-                "   WHERE json_extract(value, '$.type') = 'stuck') AS stuck_nodes"
+                " (SELECT json_group_array(json_object('kind', kind, 'node', node, 'step', step,"
+                "         'at_ms', at_ms, 'replies', replies, 'message', message))"
+                "    FROM (SELECT * FROM call_issues WHERE call_id = calls.id ORDER BY rowid)) AS issues"
                 f" FROM calls WHERE {where} ORDER BY started_at DESC LIMIT ?",
                 (*params, limit),
             ).fetchall()
@@ -158,7 +178,7 @@ class CallRepository:
                 outcome=r["outcome"],
                 end_node=r["end_node"],
                 path=json.loads(r["path"]),
-                stuck_nodes=json.loads(r["stuck_nodes"]),
+                issues=[CallIssue(**issue) for issue in json.loads(r["issues"])],
             )
             for r in rows
         ]
@@ -188,6 +208,22 @@ class CallRepository:
             events=json.loads(row["events"]),
         )
 
+    @staticmethod
+    def _insert_issues(conn: sqlite3.Connection, record: CallRecord, issues: list[CallIssue]) -> None:
+        """:param conn: An open connection, inside a write transaction.
+        :param record: The call the issues belong to.
+        :param issues: Its issues.
+        """
+        conn.executemany(
+            "INSERT INTO call_issues (call_id, agent_id, agent_version, kind, node, step, at_ms, replies, message)"
+            " VALUES (:call_id, :agent_id, :agent_version, :kind, :node, :step, :at_ms, :replies, :message)",
+            [
+                {"call_id": record.id, "agent_id": record.agent_id, "agent_version": record.agent_version}
+                | asdict(issue)
+                for issue in issues
+            ],
+        )
+
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
         """A connection for one operation, closed afterwards. Autocommit, foreign keys on.
@@ -201,3 +237,19 @@ class CallRepository:
             yield conn
         finally:
             conn.close()
+
+    @contextmanager
+    def _transaction(self) -> Iterator[sqlite3.Connection]:
+        """A connection inside a write transaction (a call and its issues are stored
+        together or not at all). Commits when the block ends, rolls back if it raises.
+
+        :return: The connection, while the ``with`` block runs.
+        """
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                yield conn
+            except BaseException:
+                conn.execute("ROLLBACK")
+                raise
+            conn.execute("COMMIT")

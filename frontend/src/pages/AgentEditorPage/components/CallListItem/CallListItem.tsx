@@ -1,6 +1,5 @@
 import type { CallSummary } from "@/shared/types/call";
 import { Badge, ClockIcon } from "@/shared/ui";
-import { stuckNode } from "../../lib/callHealth";
 import { callerName } from "../../lib/callerName";
 import { OUTCOMES } from "../../lib/callOutcomes";
 import { formatDuration, formatRelative } from "../../lib/time";
@@ -21,7 +20,7 @@ export function CallListItem({ call, now, onOpen }: CallListItemProps) {
   const outcome = OUTCOMES[call.outcome];
   const startedAt = new Date(call.started_at);
   // Only a real failure is flagged here; long stays in calls that moved on show in the overview.
-  const stuck = stuckNode(call);
+  const stuck = call.issues.find((issue) => issue.kind === "stuck")?.node;
   return (
     <li>
       <button

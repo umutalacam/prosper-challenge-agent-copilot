@@ -1,8 +1,6 @@
 import { clsx } from "clsx";
-import type { CallDetail, CallOutcome } from "@/shared/types/call";
+import type { CallDetail, CallIssue, CallOutcome, PathStep } from "@/shared/types/call";
 import { ActionIcon, Badge, CheckIcon, CloseIcon } from "@/shared/ui";
-import { botRepliesIn } from "../../lib/callHealth";
-import { pathSteps, type PathStep } from "../../lib/callPath";
 import { formatDuration } from "../../lib/time";
 import styles from "./CallPath.module.scss";
 
@@ -26,30 +24,30 @@ export interface CallPathProps {
 /**
  * The call's walk through the agent as a vertical timeline: each node with when
  * it was reached and how long the call stayed, what was collected there and the
- * action that moved it on, and how it ended.
+ * action that moved it on, and how it ended. Steps and their issues come from
+ * the backend; this only lays them out.
  */
 export function CallPath({ call }: CallPathProps) {
-  const steps = pathSteps(call);
-  if (steps.length === 0) return <p className={styles.muted}>The flow never started.</p>;
+  if (call.steps.length === 0) return <p className={styles.muted}>The flow never started.</p>;
   return (
     <ol className={styles.timeline} aria-label="Path through the agent">
-      {steps.map((step, i) => (
+      {call.steps.map((step, i) => (
         <Step
           key={`${step.node}-${String(i)}`}
           step={step}
-          replies={botRepliesIn(call.transcript, step.node)}
+          issues={call.issues.filter((issue) => issue.step === i)}
         />
       ))}
     </ol>
   );
 }
 
-function Step({ step, replies }: { step: PathStep; replies: number }) {
+function Step({ step, issues }: { step: PathStep; issues: CallIssue[] }) {
   const args = step.exit ? Object.entries(step.exit.args) : [];
+  const stuck = issues.some((issue) => issue.kind === "stuck");
+  const longStay = issues.some((issue) => issue.kind === "long_stay");
   return (
-    <li
-      className={clsx(styles.step, step.ending && styles[step.ending], step.stuck && styles.stuck)}
-    >
+    <li className={clsx(styles.step, step.ending && styles[step.ending], stuck && styles.stuck)}>
       <span className={styles.marker} aria-hidden="true">
         {step.ending === "completed" && <CheckIcon width={10} height={10} />}
         {step.ending === "error" && <CloseIcon width={9} height={9} />}
@@ -57,18 +55,16 @@ function Step({ step, replies }: { step: PathStep; replies: number }) {
       <div className={styles.body}>
         <div className={styles.title}>
           <span className={styles.node}>{step.node}</span>
-          {step.stuck && <Badge tone="brand">Stuck here</Badge>}
-          {step.longStay && (
-            <span title={`The agent replied ${String(replies)} times here before moving on`}>
+          {stuck && <Badge tone="brand">Stuck here</Badge>}
+          {longStay && (
+            <span title={`The agent replied ${String(step.replies)} times here before moving on`}>
               <Badge>Long stay</Badge>
             </span>
           )}
         </div>
-        {step.enteredMs !== null && step.stayMs !== null && (
-          <div className={styles.meta}>
-            at {formatDuration(step.enteredMs)} · {formatDuration(step.stayMs)} here
-          </div>
-        )}
+        <div className={styles.meta}>
+          at {formatDuration(step.entered_ms)} · {formatDuration(step.stay_ms)} here
+        </div>
         {step.exit && (
           // What was collected (if anything), then the action on its own line.
           <div className={styles.exit}>

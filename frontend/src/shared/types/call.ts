@@ -4,6 +4,43 @@
 /** How a call ended. */
 export type CallOutcome = "completed" | "abandoned" | "not_started" | "error";
 
+/**
+ * What went wrong in a call, judged by the backend (CallRecord.issues):
+ * `stuck` = the bot improvised in the node the call ended in, unfinished (a
+ * failure); `long_stay` = it improvised but the call moved on (a note, not a
+ * failure); `error` = the pipeline raised.
+ */
+export type CallIssueKind = "stuck" | "long_stay" | "error";
+
+export interface CallIssue {
+  kind: CallIssueKind;
+  /** Where it happened; null for an error before the flow started. */
+  node: string | null;
+  /** Its index in `CallDetail.steps`; null if the flow never started. */
+  step: number | null;
+  /** Milliseconds since the call started. */
+  at_ms: number;
+  /** stuck / long_stay: the bot reply that tipped it. */
+  replies: number | null;
+  /** error: what the pipeline raised. */
+  message: string | null;
+}
+
+/** One stay in a node, in the order the call walked them. */
+export interface PathStep {
+  node: string;
+  /** When the call entered it, in ms since the call started. */
+  entered_ms: number;
+  /** How long the call stayed. */
+  stay_ms: number;
+  /** Bot replies during the stay. */
+  replies: number;
+  /** The action that took the call on, and what it collected; null for the last step. */
+  exit: { function: string; args: Record<string, unknown> } | null;
+  /** How the call ended here; null if it moved on. */
+  ending: CallOutcome | null;
+}
+
 /** One call in the list (no timeline). */
 export interface CallSummary {
   id: string;
@@ -16,8 +53,8 @@ export interface CallSummary {
   end_node: string | null;
   /** The nodes it visited, in order. */
   path: string[];
-  /** Nodes where the bot improvised (replied repeatedly without an action). */
-  stuck_nodes: string[];
+  /** What went wrong, in timeline order; empty for a clean call. */
+  issues: CallIssue[];
 }
 
 /** One turn of what was said. */
@@ -54,11 +91,13 @@ export type CallEvent = { at_ms: number } & (
 );
 
 /** One call in full. */
-export interface CallDetail extends Omit<CallSummary, "stuck_nodes"> {
+export interface CallDetail extends CallSummary {
   agent_id: string;
   agent_name: string;
   /** ISO 8601. */
   ended_at: string;
+  /** The walk through the agent; empty if the flow never started. */
+  steps: PathStep[];
   transcript: TranscriptTurn[];
   final_state: FlowState;
   events: CallEvent[];

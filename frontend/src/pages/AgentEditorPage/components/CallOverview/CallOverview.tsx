@@ -1,7 +1,6 @@
 import { useId } from "react";
-import type { CallDetail, CallEvent } from "@/shared/types/call";
+import type { CallDetail } from "@/shared/types/call";
 import { Badge, ClockIcon } from "@/shared/ui";
-import { stuckNode, stuckNodesOf } from "../../lib/callHealth";
 import { callerName } from "../../lib/callerName";
 import { OUTCOMES } from "../../lib/callOutcomes";
 import { formatDuration, formatRelative } from "../../lib/time";
@@ -21,11 +20,8 @@ export interface CallOverviewProps {
  */
 export function CallOverview({ call, now }: CallOverviewProps) {
   const outcome = OUTCOMES[call.outcome];
-  const signals = { ...call, stuck_nodes: stuckNodesOf(call.events) };
-  const stuck = stuckNode(signals);
-  const failure = call.events.find(
-    (event): event is Extract<CallEvent, { type: "error" }> => event.type === "error",
-  );
+  const stuck = call.issues.find((issue) => issue.kind === "stuck")?.node ?? null;
+  const failure = call.issues.find((issue) => issue.kind === "error");
   // Long stays show on the path itself; these are the things that went wrong.
   const hasNotes = failure !== undefined || stuck !== null;
   const id = useId();

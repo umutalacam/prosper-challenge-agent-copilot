@@ -19,6 +19,7 @@ from api.agents.repository import AgentRepository
 from api.agents.service import AgentService
 from api.bot.repository import DeploymentRepository
 from api.bot.service import BotService
+from api.calls.analyzer import CallAnalyzer
 from api.calls.repository import CallRepository
 from api.calls.service import CallRecordService
 from api.copilot.service import CopilotService
@@ -57,17 +58,25 @@ def get_call_repository() -> CallRepository:
 
 
 @lru_cache
+def get_call_analyzer() -> CallAnalyzer:
+    """:return: The process's one call analyzer."""
+    return CallAnalyzer()
+
+
+@lru_cache
 def get_call_record_service(
     repository: Annotated[CallRepository, Depends(get_call_repository)],
     agents: Annotated[AgentService, Depends(get_agent_service)],
+    analyzer: Annotated[CallAnalyzer, Depends(get_call_analyzer)],
 ) -> CallRecordService:
     """Stored calls: saved by the voice bot, read by the calls routes.
 
     :param repository: Where calls are stored.
     :param agents: Used to check that a call's agent exists.
+    :param analyzer: Judges each call: its steps and issues.
     :return: The service for those dependencies.
     """
-    return CallRecordService(repository, agents)
+    return CallRecordService(repository, agents, analyzer)
 
 
 @lru_cache

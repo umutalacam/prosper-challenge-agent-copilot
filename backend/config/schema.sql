@@ -54,3 +54,25 @@ CREATE TABLE IF NOT EXISTS calls (
 ) STRICT;
 
 CREATE INDEX IF NOT EXISTS calls_by_agent ON calls (agent_id, started_at DESC);
+
+-- What went wrong in each call (CallRecord.issues), written with the call, so
+-- failures can be counted across calls: where an agent (or one version of it)
+-- gets stuck, which nodes need many replies, how often calls error. `agent_id` /
+-- `agent_version` are copied from the call so those queries don't need a join.
+--   stuck      the bot improvised in the node the call ended in, unfinished (a failure)
+--   long_stay  it improvised in a node but the call moved on (a note)
+--   error      the pipeline raised (`message`)
+CREATE TABLE IF NOT EXISTS call_issues (
+    call_id        TEXT NOT NULL REFERENCES calls (id) ON DELETE CASCADE,
+    agent_id       TEXT NOT NULL,
+    agent_version  INTEGER NOT NULL,
+    kind           TEXT NOT NULL CHECK (kind IN ('stuck', 'long_stay', 'error')),
+    node           TEXT,
+    step           INTEGER,
+    at_ms          INTEGER NOT NULL,
+    replies        INTEGER,
+    message        TEXT
+) STRICT;
+
+CREATE INDEX IF NOT EXISTS call_issues_by_call ON call_issues (call_id);
+CREATE INDEX IF NOT EXISTS call_issues_by_agent ON call_issues (agent_id, agent_version, kind, node);

@@ -4,7 +4,7 @@
 #
 #   GET /api/agents/{agent_id}/calls?limit=50&outcome=…   recent calls, newest first
 #                                                        (outcome repeatable: completed, abandoned, …)
-#   GET /api/agents/{agent_id}/calls/{call_id}    one call: transcript, timeline, final state
+#   GET /api/agents/{agent_id}/calls/{call_id}    one call: issues, steps, transcript, timeline, final state
 #
 
 from typing import Annotated, Any
@@ -48,5 +48,5 @@ def get_call(agent_id: str, call_id: str, calls: Calls) -> dict[str, Any]:
     :param calls: The call record service.
     :return: The call.
     """
-    return CallRecordService.to_response(calls.get(agent_id, call_id))
+    return calls.to_response(calls.get(agent_id, call_id))
 
