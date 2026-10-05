@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from api.agents.repository import AgentRepository
-from api.calls.repository import CallRecord, CallRepository
+from api.calls.repository import CallRecord, CallRepository, Outcome
 from config import SEED_SQL
 from api.bot.repository import DeploymentRepository
 from dependencies import get_agent_repository, get_call_repository, get_deployment_repository
@@ -88,13 +88,21 @@ def make_agent(name: str = "Test agent", nodes: int = 1) -> dict:
 CALL_T0 = datetime(2026, 10, 5, 9, 0, tzinfo=UTC)
 
 
-def make_call(call_id: str, agent_id: str = "desk", *, minutes: int = 0, stuck_in: str | None = None) -> CallRecord:
+def make_call(
+    call_id: str,
+    agent_id: str = "desk",
+    *,
+    minutes: int = 0,
+    stuck_in: str | None = None,
+    outcome: Outcome = "abandoned",
+) -> CallRecord:
     """A stored call that ended in ``n0`` after 1.5 s, for seeding.
 
     :param call_id: Its id.
     :param agent_id: The agent it ran.
     :param minutes: When it started, in minutes after CALL_T0.
     :param stuck_in: A node to record a ``stuck`` event in.
+    :param outcome: How it ended.
     :return: The record.
     """
     events = [
@@ -103,7 +111,7 @@ def make_call(call_id: str, agent_id: str = "desk", *, minutes: int = 0, stuck_i
     ]
     if stuck_in:
         events.append({"type": "stuck", "node": stuck_in, "replies": 3, "at_ms": 900})
-    events.append({"type": "ended", "node": "n0", "outcome": "abandoned", "at_ms": 1500})
+    events.append({"type": "ended", "node": "n0", "outcome": outcome, "at_ms": 1500})
     started = CALL_T0 + timedelta(minutes=minutes)
     return CallRecord(
         id=call_id,
@@ -112,7 +120,7 @@ def make_call(call_id: str, agent_id: str = "desk", *, minutes: int = 0, stuck_i
         agent_name="Desk",
         started_at=started,
         ended_at=started + timedelta(milliseconds=1500),
-        outcome="abandoned",
+        outcome=outcome,
         end_node="n0",
         path=["n0"],
         final_state={"name": "Ana"},

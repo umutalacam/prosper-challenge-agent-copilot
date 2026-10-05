@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Iterator
+from collections.abc import Collection, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -124,21 +124,28 @@ class CallRepository:
                 ),
             )
 
-    def list_for_agent(self, agent_id: str, limit: int = 50) -> list[CallSummary]:
+    def list_for_agent(
+        self, agent_id: str, limit: int = 50, outcomes: Collection[Outcome] | None = None
+    ) -> list[CallSummary]:
         """An agent's calls, newest first, without their timelines.
 
         :param agent_id: The agent whose calls to list.
         :param limit: At most this many calls.
+        :param outcomes: Only calls that ended one of these ways; None or empty for all.
         :return: The calls, with the nodes each got stuck in.
         """
+        where, params = "agent_id = ?", [agent_id]
+        if outcomes:
+            where += f" AND outcome IN ({', '.join('?' * len(outcomes))})"
+            params += list(outcomes)
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT id, agent_version, started_at, ended_at, outcome, end_node, path,"
                 " (SELECT json_group_array(DISTINCT json_extract(value, '$.node'))"
                 "    FROM json_each(calls.events)"
                 "   WHERE json_extract(value, '$.type') = 'stuck') AS stuck_nodes"
-                " FROM calls WHERE agent_id = ? ORDER BY started_at DESC LIMIT ?",
-                (agent_id, limit),
+                f" FROM calls WHERE {where} ORDER BY started_at DESC LIMIT ?",
+                (*params, limit),
             ).fetchall()
         return [
             CallSummary(

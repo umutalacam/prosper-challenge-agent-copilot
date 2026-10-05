@@ -4,13 +4,14 @@
 # to_response.
 #
 
+from collections.abc import Collection
 from typing import Any
 
 from loguru import logger
 
 from api.agents.repository import AgentNotFound
 from api.agents.service import AgentService
-from api.calls.repository import CallNotFound, CallRecord, CallRepository, CallSummary
+from api.calls.repository import CallNotFound, CallRecord, CallRepository, CallSummary, Outcome
 
 
 class CallRecordService:
@@ -35,16 +36,19 @@ class CallRecordService:
         self._repository.save(record)
         logger.info(f"Saved call {record.id} ({record.outcome})")
 
-    def list(self, agent_id: str, limit: int = 50) -> list[CallSummary]:
+    def list(
+        self, agent_id: str, limit: int = 50, outcomes: Collection[Outcome] | None = None
+    ) -> list[CallSummary]:
         """An agent's most recent calls, newest first.
 
         :param agent_id: The agent whose calls to list.
         :param limit: At most this many calls.
+        :param outcomes: Only calls that ended one of these ways; None or empty for all.
         :return: The calls, without their timelines.
         :raises AgentNotFound: If there's no such agent.
         """
         self._agents.get(agent_id)
-        return self._repository.list_for_agent(agent_id, limit)
+        return self._repository.list_for_agent(agent_id, limit, outcomes)
 
     def get(self, agent_id: str, call_id: str) -> CallRecord:
         """One of an agent's calls in full.

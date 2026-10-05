@@ -69,3 +69,12 @@ def test_a_call_whose_agent_was_deleted_meanwhile_is_skipped(db: Path, calls: Ca
     service.save(call("late"))  # the call ended after its agent was deleted: no error, not stored
     with pytest.raises(CallNotFound):
         calls.get("late")
+
+
+def test_the_list_can_be_filtered_by_outcome(calls: CallRepository):
+    calls.save(call("done", outcome="completed", minutes=0))
+    calls.save(call("left", outcome="abandoned", minutes=1))
+    calls.save(call("broke", outcome="error", minutes=2))
+    assert [c.id for c in calls.list_for_agent("desk", outcomes=["completed"])] == ["done"]
+    assert [c.id for c in calls.list_for_agent("desk", outcomes=["error", "completed"])] == ["broke", "done"]
+    assert len(calls.list_for_agent("desk", outcomes=[])) == 3  # empty means all

@@ -68,3 +68,19 @@ def test_unknown_agents_and_calls_are_404(client: TestClient, api_db: Path):
     CallRepository(api_db).save(make_call("theirs", other.json()["id"]))
     assert client.get(f"/api/agents/{agent_id}/calls/theirs").status_code == 404
     assert client.get(f"/api/agents/{other.json()['id']}/calls/theirs").status_code == 200
+
+
+def test_the_list_filters_by_outcome(client: TestClient, api_db: Path):
+    agent_id = seeded_agent(client)
+    calls = CallRepository(api_db)
+    calls.save(make_call("done", agent_id, outcome="completed"))
+    calls.save(make_call("left", agent_id, outcome="abandoned", minutes=1))
+    calls.save(make_call("broke", agent_id, outcome="error", minutes=2))
+
+    def ids(**params) -> list[str]:
+        return [c["id"] for c in client.get(f"/api/agents/{agent_id}/calls", params=params).json()]
+
+    assert ids(outcome="completed") == ["done"]
+    assert ids(outcome=["completed", "error"]) == ["broke", "done"]
+    assert ids() == ["broke", "left", "done"]
+    assert client.get(f"/api/agents/{agent_id}/calls", params={"outcome": "lost"}).status_code == 422
