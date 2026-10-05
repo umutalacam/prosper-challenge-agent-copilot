@@ -58,10 +58,12 @@ $pane-top: $float-gap + $menu-button-size + $space-2;
   padding: $space-3;
   overflow-y: auto;
   overscroll-behavior: contain;
+  // A size container, so the latest turn can be as tall as the pane (100cqh).
+  container-type: size;
 }
 
 .content {
-  @include m.stack($space-3);
+  @include m.stack($space-6);
 }
 
 // Before the first prompt: what the copilot is for, centered in the empty pane.
@@ -94,47 +96,41 @@ $pane-top: $float-gap + $menu-button-size + $space-2;
   border-top: 1px solid $color-border;
 }
 
-.earlierToggle {
-  align-self: flex-start;
-  padding: 0;
-  border: none;
-  background: none;
-  color: $color-text-muted;
-  font: inherit;
-  font-size: $font-size-sm;
-  cursor: pointer;
-
-  &:hover {
-    color: $color-text;
-  }
-
-  &:focus-visible {
-    @include m.focus-ring;
-  }
-}
-
-.earlier {
-  @include m.stack($space-2);
-  margin: 0;
-  padding: 0 0 $space-3;
-  border-bottom: 1px solid $color-border;
-  list-style: none;
-  font-size: $font-size-sm;
-}
-
-.earlierPrompt {
-  font-weight: 600;
-}
-
-.earlierReply {
-  color: $color-text-muted;
-}
-
 .turn {
   @include m.stack($space-3);
 
+  // Like a chat: the latest turn fills the pane at least, so its message can scroll
+  // to the top with room below for the answer (following the bottom puts it there).
+  &:last-child {
+    min-height: 100cqh;
+  }
+
   > div {
     @include m.stack($space-3);
+  }
+}
+
+// A turn's message, pinned to the top of the scroll while its turn scrolls under
+// it (sticky within the turn, so the previous turn's message takes over when you
+// scroll above this one). Bleeds over the body's padding so nothing shows beside it,
+// with a short fade below.
+.ask {
+  position: sticky;
+  top: calc(-1 * #{$space-3}); // the body's top padding: pin flush with its edge
+  z-index: 1;
+  margin: calc(-1 * #{$space-3}) calc(-1 * #{$space-3}) 0;
+  padding: $space-3 $space-3 $space-1;
+  background: $color-surface;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    height: $space-3;
+    background: linear-gradient($color-surface, transparent);
+    pointer-events: none;
   }
 }
 
@@ -248,4 +244,37 @@ $pane-top: $float-gap + $menu-button-size + $space-2;
   to {
     transform: rotate(360deg);
   }
+}
+
+.promptText {
+  margin: 0;
+}
+
+.clamped {
+  @include m.line-clamp(4);
+}
+
+.more {
+  margin-top: $space-1;
+  padding: 0;
+  border: none;
+  background: none;
+  color: $color-accent;
+  font: inherit;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:focus-visible {
+    @include m.focus-ring;
+  }
+}
+
+// An earlier turn's questions, answered since: just the questions.
+.askedBefore {
+  @include m.stack($space-1);
+  margin: 0;
+  padding-left: $space-4;
+  color: $color-text-muted;
+  font-size: $font-size-sm;
 }

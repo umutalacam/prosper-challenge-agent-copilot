@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { CopilotTurn } from "../../hooks/useCopilot";
 import { callerName } from "../../lib/callerName";
@@ -57,5 +57,27 @@ describe("CopilotPane", () => {
     expect(screen.getByText("Fix across calls")).toBeTruthy();
     expect(screen.getByText("3 calls · v4")).toBeTruthy();
     expect(screen.getByText("Stuck in greeting")).toBeTruthy();
+  });
+
+  it("keeps the whole conversation in one scroll, each message in its turn's pinned header", () => {
+    renderTurns([
+      {
+        id: 1,
+        prompt: "Build a dental desk",
+        status: "done",
+        activity: null,
+        steps: [],
+        reply: "Built it.",
+        questions: [{ question: "Who calls?" }],
+      },
+      { id: 2, prompt: "Make it friendlier", status: "running", activity: "Planning…", steps: [] },
+    ]);
+    const turns = screen.getAllByRole("article");
+    expect(turns).toHaveLength(2);
+    expect(within(turns[0]!).getByText("Build a dental desk")).toBeTruthy();
+    expect(within(turns[0]!).getByText("Who calls?")).toBeTruthy(); // answered since: just the text
+    expect(within(turns[0]!).queryByRole("button")).toBeNull();
+    expect(within(turns[1]!).getByText("Make it friendlier")).toBeTruthy();
+    expect(within(turns[1]!).getByText("Planning…")).toBeTruthy();
   });
 });

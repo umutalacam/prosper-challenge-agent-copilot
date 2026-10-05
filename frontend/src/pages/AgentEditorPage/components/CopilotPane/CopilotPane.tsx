@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { CopilotFix, CopilotGroupFix } from "@/shared/types/copilot";
 import { CloseIcon, FixIcon, IconButton, IssuesIcon, SparklesIcon } from "@/shared/ui";
 import type { CopilotTurn } from "../../hooks/useCopilot";
@@ -21,19 +21,18 @@ export interface CopilotPaneProps {
 
 /**
  * The copilot's pane, docked on the left for the full height below the menu
- * button: the conversation (latest prompt, what the copilot is doing and has
- * done, its reply and any questions; earlier turns fold away), with the prompt
- * box at the bottom.
+ * button: the whole conversation in one scroll, with the prompt box at the
+ * bottom. Like a chat: each turn's message stays pinned at the top while its
+ * output scrolls under it, and hands over to the previous message when you scroll
+ * past the start of its turn.
  */
 export function CopilotPane({ turns, onAnswer, onClose, footer }: CopilotPaneProps) {
-  const [showEarlier, setShowEarlier] = useState(false);
   const latest = turns.at(-1);
   // Follow the copilot's output as it streams in; each new prompt starts following again.
   const { ref: bodyRef, onScroll: onBodyScroll } = useStickToBottom<HTMLDivElement>(
     latest,
     latest?.id,
   );
-  const earlier = turns.slice(0, -1);
 
   return (
     <section className={styles.pane} aria-label="Copilot">
@@ -48,40 +47,9 @@ export function CopilotPane({ turns, onAnswer, onClose, footer }: CopilotPanePro
       <div className={styles.body} ref={bodyRef} onScroll={onBodyScroll}>
         {latest ? (
           <div className={styles.content}>
-            {earlier.length > 0 && (
-              <>
-                <button
-                  type="button"
-                  className={styles.earlierToggle}
-                  aria-expanded={showEarlier}
-                  onClick={() => {
-                    setShowEarlier(!showEarlier);
-                  }}
-                >
-                  {showEarlier ? "Hide" : "Show"} earlier ({earlier.length})
-                </button>
-                {showEarlier && (
-                  <ol className={styles.earlier}>
-                    {earlier.map((turn) => (
-                      <li key={turn.id}>
-                        <p className={styles.earlierPrompt}>
-                          {turn.fix
-                            ? `Fix: ${turn.fix.node ?? "the call"}`
-                            : turn.group_fix
-                              ? `Fix: ${groupLabel(turn.group_fix)}`
-                              : turn.prompt}
-                        </p>
-                        {(turn.reply ?? turn.error) && (
-                          <p className={styles.earlierReply}>{turn.reply ?? turn.error}</p>
-                        )}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </>
-            )}
-
-            <Turn turn={latest} onAnswer={onAnswer} />
+            {turns.map((turn) => (
+              <Turn key={turn.id} turn={turn} latest={turn === latest} onAnswer={onAnswer} />
+            ))}
           </div>
         ) : (
           <div className={styles.intro}>
@@ -100,16 +68,28 @@ export function CopilotPane({ turns, onAnswer, onClose, footer }: CopilotPanePro
   );
 }
 
-function Turn({ turn, onAnswer }: { turn: CopilotTurn; onAnswer: (message: string) => void }) {
+function Turn({
+  turn,
+  latest,
+  onAnswer,
+}: {
+  turn: CopilotTurn;
+  /** Only the latest turn's questions can still be answered. */
+  latest: boolean;
+  onAnswer: (message: string) => void;
+}) {
   return (
     <article className={styles.turn}>
-      {turn.fix ? (
-        <FixCard fix={turn.fix} />
-      ) : turn.group_fix ? (
-        <GroupFixCard group={turn.group_fix} />
-      ) : (
-        <p className={styles.prompt}>{turn.prompt}</p>
-      )}
+      {/* Pinned to the top of the scroll while this turn's output scrolls under it. */}
+      <div className={styles.ask}>
+        {turn.fix ? (
+          <FixCard fix={turn.fix} />
+        ) : turn.group_fix ? (
+          <GroupFixCard group={turn.group_fix} />
+        ) : (
+          <Prompt text={turn.prompt} />
+        )}
+      </div>
 
       {/* Announced as it changes: what the copilot is doing, then what it did. */}
       <div aria-live="polite">
@@ -146,9 +126,17 @@ function Turn({ turn, onAnswer }: { turn: CopilotTurn; onAnswer: (message: strin
             reopening the pane shows at once). */}
         <TypedText text={turn.reply ?? ""} className={styles.reply} />
 
-        {turn.questions && turn.questions.length > 0 && (
-          <CopilotQuestions key={turn.id} questions={turn.questions} onSubmit={onAnswer} />
-        )}
+        {turn.questions &&
+          turn.questions.length > 0 &&
+          (latest ? (
+            <CopilotQuestions key={turn.id} questions={turn.questions} onSubmit={onAnswer} />
+          ) : (
+            <ul className={styles.askedBefore}>
+              {turn.questions.map((q) => (
+                <li key={q.question}>{q.question}</li>
+              ))}
+            </ul>
+          ))}
 
         {turn.status === "stopped" && (
           <p className={styles.muted}>Stopped. Edits made so far are kept.</p>
@@ -197,6 +185,40 @@ function GroupFixCard({ group }: { group: CopilotGroupFix }) {
         </span>
       </p>
       <p>{groupLabel(group)}</p>
+    </div>
+  );
+}
+
+/**
+ * The user's message. Clamped to a few lines, so a pinned message never takes
+ * over the pane; "Show more" opens a long one.
+ */
+function Prompt({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [clamped, setClamped] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el && !expanded) setClamped(el.scrollHeight > el.clientHeight + 1);
+  }, [text, expanded]);
+
+  return (
+    <div className={styles.prompt}>
+      <p ref={ref} className={clsx(styles.promptText, !expanded && styles.clamped)}>
+        {text}
+      </p>
+      {(clamped || expanded) && (
+        <button
+          type="button"
+          className={styles.more}
+          aria-expanded={expanded}
+          onClick={() => {
+            setExpanded(!expanded);
+          }}
+        >
+          {expanded ? "Show less" : "Show more"}
+        </button>
+      )}
     </div>
   );
 }
