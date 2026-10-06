@@ -14,7 +14,7 @@ import { EditorToolbar } from "./components/EditorToolbar/EditorToolbar";
 import { FlowCanvas } from "./components/FlowCanvas/FlowCanvas";
 import { Inspector } from "./components/Inspector/Inspector";
 import { JsonDialog } from "./components/JsonDialog/JsonDialog";
-import { useCopilot } from "./hooks/useCopilot";
+import { useCopilot, type CarriedCopilot, type CopilotTurn } from "./hooks/useCopilot";
 import { useEditHighlights } from "./hooks/useEditHighlights";
 import { useKeyPress } from "./hooks/useKeyPress";
 import { useModKeyShortcut } from "./hooks/useKeyboardShortcut";
@@ -27,9 +27,21 @@ import styles from "./AgentEditor.module.scss";
 
 export type AgentEditorProps =
   /** A new, never-saved agent; `initialPrompt` (from the home page) goes to the copilot first. */
-  | { agentId: null; initialAgent: Agent; initialVersion?: undefined; initialPrompt?: string }
-  /** A stored agent, at the version it was loaded at. */
-  | { agentId: string; initialAgent: Agent; initialVersion: number; initialPrompt?: undefined };
+  | {
+      agentId: null;
+      initialAgent: Agent;
+      initialVersion?: undefined;
+      initialPrompt?: string;
+      initialTurns?: undefined;
+    }
+  /** A stored agent, at the version it was loaded at; `initialTurns`: the copilot conversation from before its first save. */
+  | {
+      agentId: string;
+      initialAgent: Agent;
+      initialVersion: number;
+      initialPrompt?: undefined;
+      initialTurns?: CopilotTurn[];
+    };
 
 const CONFLICT_MESSAGE =
   "Someone else saved this agent since you opened it, so your save was blocked to avoid " +
@@ -45,6 +57,7 @@ export function AgentEditor({
   initialAgent,
   initialVersion,
   initialPrompt,
+  initialTurns,
 }: AgentEditorProps) {
   const [state, dispatch] = useReducer(editorReducer, initialAgent, (agent) =>
     // A brand-new agent opens on its settings so the first thing you do is name it.
@@ -78,6 +91,7 @@ export function AgentEditor({
   // faster than renders, so diffing against state.agent could miss one).
   const copilotBaseRef = useRef<Agent | null>(null);
   const copilot = useCopilot({
+    initialTurns,
     getAgent: useCallback(() => agentRef.current, []),
     onAgent: useCallback(
       (edited: Agent) => {
@@ -134,7 +148,9 @@ export function AgentEditor({
       setError(null);
       if (!agentId) {
         allowNextNavigation();
-        void navigate(`/agents/${saved.id}`, { replace: true });
+        // The stored agent's editor is a new mount: carry the copilot conversation over.
+        const carried: CarriedCopilot = { copilotTurns: copilot.turns };
+        void navigate(`/agents/${saved.id}`, { replace: true, state: carried });
       }
     } catch (e) {
       setError(e instanceof ApiError && e.isConflict ? CONFLICT_MESSAGE : errorMessage(e));

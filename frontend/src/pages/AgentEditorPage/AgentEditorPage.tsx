@@ -4,6 +4,7 @@ import { ApiError, errorMessage, useAgent } from "@/shared/api";
 import type { NewAgentState } from "@/shared/types/agent";
 import { Button, ButtonLink, EmptyState } from "@/shared/ui";
 import { AgentEditor } from "./AgentEditor";
+import { carriedTurns } from "./hooks/useCopilot";
 import { createDraftAgent } from "./lib/draftAgent";
 
 /** Route: /agents/new and /agents/:agentId. */
@@ -31,6 +32,14 @@ function NewAgentEditor() {
 
 function StoredAgentEditor({ agentId }: { agentId: string }) {
   const query = useAgent(agentId);
+  // The copilot conversation from before this agent's first save, taken once: drop it
+  // from history so a reload doesn't bring back a stale copy.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [turns] = useState(() => carriedTurns(location.state));
+  useEffect(() => {
+    if (turns) void navigate(".", { replace: true, state: null });
+  }, [turns, navigate]);
 
   if (query.isPending) return <EmptyState title="Loading agent…" />;
 
@@ -58,5 +67,12 @@ function StoredAgentEditor({ agentId }: { agentId: string }) {
   }
 
   const { id: _id, version, updated_at: _updatedAt, ...agent } = query.data;
-  return <AgentEditor agentId={agentId} initialAgent={agent} initialVersion={version} />;
+  return (
+    <AgentEditor
+      agentId={agentId}
+      initialAgent={agent}
+      initialVersion={version}
+      initialTurns={turns}
+    />
+  );
 }

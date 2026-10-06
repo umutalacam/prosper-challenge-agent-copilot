@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Agent } from "@/shared/types/agent";
 import type { CopilotEvent } from "@/shared/types/copilot";
-import { useCopilot } from "./useCopilot";
+import { carriedTurns, useCopilot, type CopilotTurn } from "./useCopilot";
 
 const agent: Agent = {
   name: "Desk",
@@ -197,5 +197,54 @@ describe("useCopilot", () => {
     await waitFor(() => {
       expect(result.current.turns[0]).toMatchObject({ status: "error", error: "Bad input" });
     });
+  });
+
+  it("starts from a conversation carried over a remount (the first save of a new agent)", async () => {
+    const before: CopilotTurn[] = [
+      {
+        id: 1,
+        prompt: "Build a dental desk",
+        status: "done",
+        activity: null,
+        steps: [],
+        reply: "Built it.",
+      },
+    ];
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        streamResponse([{ type: "reply", text: "Friendlier now." }, { type: "done" }]),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() =>
+      useCopilot({ getAgent: () => agent, onAgent: vi.fn(), initialTurns: before }),
+    );
+    expect(result.current.turns).toEqual(before);
+
+    await act(() => result.current.send("Make it friendlier"));
+    const sent = JSON.parse(requestBody(fetchMock, 0)) as { messages: unknown[] };
+    expect(sent.messages).toEqual([
+      { role: "user", content: "Build a dental desk" },
+      { role: "assistant", content: "Built it." },
+      { role: "user", content: "Make it friendlier" },
+    ]);
+  });
+});
+
+describe("carriedTurns", () => {
+  it("reads the carried conversation, a turn cut off mid-run as stopped", () => {
+    const running: CopilotTurn = {
+      id: 2,
+      prompt: "x",
+      status: "running",
+      activity: "Planning…",
+      steps: [],
+    };
+    expect(carriedTurns({ copilotTurns: [running] })).toEqual([
+      { ...running, status: "stopped", activity: null },
+    ]);
+    expect(carriedTurns(null)).toBeUndefined();
+    expect(carriedTurns({ copilotTurns: [] })).toBeUndefined();
+    expect(carriedTurns({ prompt: "unrelated state" })).toBeUndefined();
   });
 });

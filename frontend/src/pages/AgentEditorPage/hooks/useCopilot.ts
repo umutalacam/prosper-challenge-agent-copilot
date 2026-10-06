@@ -48,6 +48,26 @@ export interface UseCopilotOptions {
   onAgent: (agent: Agent) => void;
   /** A turn finished (or stopped) having changed the agent. */
   onTurnEnd?: (changed: boolean) => void;
+  /** The conversation so far, carried over from before a remount (see `carriedTurns`). */
+  initialTurns?: CopilotTurn[];
+}
+
+/** Router state that carries the copilot's conversation to the editor's next mount. */
+export interface CarriedCopilot {
+  copilotTurns: CopilotTurn[];
+}
+
+/**
+ * The conversation carried in router state (the first save of a new agent moves it
+ * to /agents/:id, a remount). A turn that was still running was cut off by the
+ * navigation, so it reads as stopped.
+ */
+export function carriedTurns(state: unknown): CopilotTurn[] | undefined {
+  const turns = (state as Partial<CarriedCopilot> | null)?.copilotTurns;
+  if (!Array.isArray(turns) || turns.length === 0) return undefined;
+  return turns.map((turn) =>
+    turn.status === "running" ? { ...turn, status: "stopped", activity: null } : turn,
+  );
 }
 
 /**
@@ -125,8 +145,8 @@ function applyEvent(turn: CopilotTurn, event: CopilotEvent): CopilotTurn {
  * history (the backend is stateless) and sends it, plus the current working
  * copy, with every prompt. Mount per agent: AgentEditor's `key` resets it.
  */
-export function useCopilot({ getAgent, onAgent, onTurnEnd }: UseCopilotOptions) {
-  const [turns, setTurns] = useState<CopilotTurn[]>([]);
+export function useCopilot({ getAgent, onAgent, onTurnEnd, initialTurns }: UseCopilotOptions) {
+  const [turns, setTurns] = useState<CopilotTurn[]>(() => initialTurns ?? []);
   const turnsRef = useRef(turns);
   useEffect(() => {
     turnsRef.current = turns;
