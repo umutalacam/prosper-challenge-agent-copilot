@@ -1,5 +1,7 @@
 # Solution
 
+Github Repository: https://github.com/umutalacam/prosper-challenge-agent-copilot
+
 ## Overview
 
 Prosper's voice agents handle healthcare scheduling calls. Here an agent is a **graph of nodes** (Pipecat Flows). Each node is one phase of the call, and **actions** are the functions the LLM calls to move between phases, collecting fields as it goes. The agent is stored as plain JSON and compiled into a voice pipeline when a call starts.
