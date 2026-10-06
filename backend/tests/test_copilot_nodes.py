@@ -311,3 +311,4 @@ def test_discuss_fix_builds_the_agreed_fix():
     assert (t.intent, t.goal) == ("build", "Apply the fix agreed with the user: Add an action.")
     assert events[1:] == [{"type": "note", "text": f"Goal: {t.goal}"}]  # no proposal: the conversation closes
     assert node.next(t) == "planner"
+

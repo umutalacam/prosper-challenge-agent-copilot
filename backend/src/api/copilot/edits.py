@@ -51,12 +51,12 @@ class AgentEdits:
 
     # ---- nodes ---------------------------------------------------------------
     def add_node(
-        self, name: str, task: str, end: bool = False, role_message: str | None = None
+        self, name: str, tasks: list[str], end: bool = False, role_message: str | None = None
     ) -> str:
         self._check_new_name(name)
         node: dict[str, Any] = {
             "name": name,
-            "task_messages": [{"role": "developer", "content": task}],
+            "task_messages": _task_messages(tasks),
             "edges": [],
         }
         if role_message:
@@ -72,7 +72,7 @@ class AgentEdits:
         self,
         name: str,
         new_name: str | None = None,
-        task: str | None = None,
+        tasks: list[str] | None = None,
         role_message: str | None = None,
         end: bool | None = None,
     ) -> str:
@@ -86,9 +86,9 @@ class AgentEdits:
                 )
             node["end"] = end
             done.append("made it an end node" if end else "made it a regular node")
-        if task is not None:
-            node["task_messages"] = [{"role": "developer", "content": task}]
-            done.append("rewrote its task")
+        if tasks is not None:
+            node["task_messages"] = _task_messages(tasks)
+            done.append("rewrote its tasks")
         if role_message is not None:
             if role_message:
                 node["role_message"] = role_message
@@ -255,3 +255,17 @@ def _join(items: list[str]) -> str:
     if len(items) < 2:
         return "".join(items)
     return ", ".join(items[:-1]) + " and " + items[-1]
+
+
+def _task_messages(tasks: list[str] | str) -> list[dict[str, str]]:
+    """A node's tasks as task messages: one short instruction each, in order.
+
+    :param tasks: The instructions (a single string is taken as one).
+    :return: The task messages.
+    :raises EditError: If there's no non-empty instruction.
+    """
+    items = [tasks] if isinstance(tasks, str) else tasks
+    clean = [t.strip() for t in items if isinstance(t, str) and t.strip()]
+    if not clean:
+        raise EditError("A node needs at least one task: one short, clear instruction per item.")
+    return [{"role": "developer", "content": task} for task in clean]

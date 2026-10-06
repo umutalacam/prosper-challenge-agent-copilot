@@ -18,8 +18,8 @@ def test_builds_a_valid_agent_step_by_step():
     assert edits.set_agent_settings(name="Help Desk", persona="Be kind.") == (
         "Updated the agent's name and persona"
     )
-    assert edits.update_node("greeting", task="Greet the caller.") == "Updated node 'greeting': rewrote its task"
-    assert edits.add_node("wrap_up", "Say goodbye.", end=True) == "Added end node 'wrap_up'"
+    assert edits.update_node("greeting", tasks=["Greet the caller."]) == "Updated node 'greeting': rewrote its tasks"
+    assert edits.add_node("wrap_up", ["Say goodbye."], end=True) == "Added end node 'wrap_up'"
     assert edits.add_action(
         "greeting",
         "wrap_up",
@@ -36,15 +36,15 @@ def test_builds_a_valid_agent_step_by_step():
 
 def test_does_not_change_the_input():
     agent = draft()
-    AgentEdits(agent).add_node("extra", "Task.")
+    AgentEdits(agent).add_node("extra", ["Task."])
     assert len(agent["nodes"]) == 1
 
 
 @pytest.mark.parametrize(
     "apply, error",
     [
-        (lambda e: e.add_node("greeting", "x"), "already exists"),
-        (lambda e: e.add_node("Bad Name", "x"), "snake_case"),
+        (lambda e: e.add_node("greeting", ["x"]), "already exists"),
+        (lambda e: e.add_node("Bad Name", ["x"]), "snake_case"),
         (lambda e: e.add_action("greeting", "greeting", "loop", ""), "another node"),
         (lambda e: e.add_action("other", "greeting", "back", ""), "start node"),
         (lambda e: e.add_action("done", "other", "more", ""), "end node"),
@@ -58,8 +58,8 @@ def test_does_not_change_the_input():
 )
 def test_refuses_what_the_graph_rules_forbid(apply, error):
     edits = AgentEdits(draft())
-    edits.add_node("other", "Task.")
-    edits.add_node("done", "Bye.", end=True)
+    edits.add_node("other", ["Task."])
+    edits.add_node("done", ["Bye."], end=True)
     edits.add_action("other", "done", "finish", "Done.")
     with pytest.raises(EditError, match=error):
         apply(edits)
@@ -67,7 +67,7 @@ def test_refuses_what_the_graph_rules_forbid(apply, error):
 
 def test_rename_and_delete_cascade_to_actions():
     edits = AgentEdits(draft())
-    edits.add_node("collect", "Ask.")
+    edits.add_node("collect", ["Ask."])
     edits.add_action("greeting", "collect", "go", "Next.")
     edits.update_node("collect", new_name="collect_details")
     assert edits.agent["nodes"][0]["edges"][0]["target"] == "collect_details"
@@ -75,3 +75,17 @@ def test_rename_and_delete_cascade_to_actions():
     assert edits.agent["initial_node"] == "hello"
     assert edits.delete_node("collect_details") == "Deleted node 'collect_details' and 1 action leading to it"
     assert edits.agent["nodes"][0]["edges"] == []
+
+
+def test_a_node_takes_separate_short_tasks():
+    edits = AgentEdits(draft())
+    edits.add_node("collect", ["Ask for the caller's full name.", "  ", "Ask for their date of birth."])
+    node = next(n for n in edits.agent["nodes"] if n["name"] == "collect")
+    assert node["task_messages"] == [
+        {"role": "developer", "content": "Ask for the caller's full name."},
+        {"role": "developer", "content": "Ask for their date of birth."},
+    ]
+    edits.update_node("collect", tasks="Ask for the caller's name and date of birth.")  # one string: one task
+    assert len(node["task_messages"]) == 1
+    with pytest.raises(EditError, match="at least one task"):
+        edits.update_node("collect", tasks=[" "])

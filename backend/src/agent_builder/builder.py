@@ -18,6 +18,15 @@ from pipecat_flows import FlowManager, FlowsFunctionSchema, NodeConfig
 
 from .schema import AgentConfig, Edge, Node
 
+# How every agent speaks, added after its persona on every call: replies are spoken
+# aloud on the phone, so no agent's persona can leave this out (the copilot's design
+# rules ask for it too, but this one can't be forgotten or edited away).
+VOICE_RULES = (
+    "Every reply is spoken aloud on a phone call. Speak in short, natural sentences and ask "
+    "one question at a time. Never use lists, bullet points, numbering, headings, markdown, "
+    "emojis, symbols or links. Say dates, times and numbers the way a person says them out loud."
+)
+
 # Called on every transition: (source node, action taken, its arguments, the call's
 # state after merging them). The voice pipeline logs the call's path with it.
 TransitionHook = Callable[[str, Edge, dict[str, Any], dict[str, Any]], None]
@@ -91,7 +100,7 @@ class AgentBuilder:
     def _make_node(self, node: Node) -> NodeConfig:
         node_config: NodeConfig = {
             "name": node.name,
-            "role_message": node.role_message or self.config.persona,
+            "role_message": "\n\n".join(filter(None, [node.role_message or self.config.persona, VOICE_RULES])),
             "task_messages": node.task_messages,
             "functions": [self._make_edge_function(node, edge) for edge in node.edges],
         }

@@ -24,7 +24,7 @@ def build_responses(*review_answers) -> list:
     """A build that adds a goodbye node and connects it, then the given reviews."""
     return [
         plan("Add end node bye", "Connect greeting to bye"),
-        reply("Adding it.", call("add_node", name="bye", task="Say bye.", end=True)),
+        reply("Adding it.", call("add_node", name="bye", tasks=["Say bye."], end=True)),
         reply(None, call("add_action", source="greeting", target="bye", function="done", description="Done.")),
         reply("All done."),
         *review_answers,

@@ -36,9 +36,10 @@
             "type": "string",
             "description": "snake_case, unique"
           },
-          "task": {
-            "type": "string",
-            "description": "What the agent does in this step, as instructions"
+          "tasks": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "What the agent does in this step: separate, short instructions, one thing each, in order"
           },
           "end": {
             "type": "boolean",
@@ -51,7 +52,7 @@
         },
         "required": [
           "name",
-          "task"
+          "tasks"
         ]
       }
     }
@@ -60,7 +61,7 @@
     "type": "function",
     "function": {
       "name": "update_node",
-      "description": "Change a node: rename it (actions follow), rewrite its task, set its persona override (empty string clears it) or make it an end node.",
+      "description": "Change a node: rename it (actions follow), replace its tasks, set its persona override (empty string clears it) or make it an end node.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -70,8 +71,10 @@
           "new_name": {
             "type": "string"
           },
-          "task": {
-            "type": "string"
+          "tasks": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Replaces all of its tasks: separate, short instructions, one thing each"
           },
           "role_message": {
             "type": "string"
